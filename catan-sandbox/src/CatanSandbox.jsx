@@ -19,8 +19,8 @@ const BOARD_PADDING = 30;
 const HEX_RADIUS = 2; // standard Catan board (radius 2) => 19 tiles
 
 const RESOURCES = [
-  { key: "wood", label: "Lumber", color: "#2e7d32" },
-  { key: "sheep", label: "Wool", color: "#66bb6a" },
+  { key: "wood", label: "Lumber", color: "#2a712dff" },
+  { key: "sheep", label: "Wool", color: "#7de398ff" },
   { key: "wheat", label: "Grain", color: "#f9a825" },
   { key: "brick", label: "Brick", color: "#c62828" },
   { key: "ore", label: "Ore", color: "#757575" },
@@ -173,8 +173,16 @@ function PlayerPanel({ player, isActive, onSelect }) {
       onClick={onSelect}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="font-semibold" style={{ color: player.color }}>
-          {player.name}
+        <div className="flex items-center gap-2">
+          <div className="font-semibold" style={{ color: player.color }}>
+            {player.name}
+          </div>
+          {isActive && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold text-black" style={{ backgroundColor: player.color }}>
+              <span>●</span>
+              <span>TURN</span>
+            </div>
+          )}
         </div>
         <div className="text-xs opacity-80">(id {player.id+1})</div>
       </div>
@@ -291,6 +299,71 @@ export default function CatanSandbox() {
   const [lastRoll, setLastRoll] = useState(null);
   const [selection, setSelection] = useState(null); // {type:'node'|'edge'|'hex', id:number}
 
+  // Helper function to place initial settlements and roads
+  const placeInitialBuildings = (newBoard) => {
+    const { nodes, edges, tiles } = newBoard;
+    
+    // Find desert tile indices
+    const desertTileIndices = tiles
+      .map((tile, index) => tile.resource === "desert" ? index : -1)
+      .filter(index => index !== -1);
+    
+    // Filter out nodes that are adjacent to desert tiles
+    const availableNodes = nodes.filter(n => {
+      if (n.building) return false; // already occupied
+      
+      // Check if this node is adjacent to any desert tile
+      const isAdjacentToDesert = n.adjHexes.some(hexIdx => 
+        desertTileIndices.includes(hexIdx)
+      );
+      
+      return !isAdjacentToDesert; // only allow nodes NOT adjacent to desert
+    });
+    
+    // For each player, place 2 towns and connect each with a road
+    for (let playerId = 0; playerId < numPlayers; playerId++) {
+      for (let settlement = 0; settlement < 2; settlement++) {
+        if (availableNodes.length === 0) break;
+        
+        // Randomly select a node for the town
+        const randomIndex = Math.floor(Math.random() * availableNodes.length);
+        const selectedNode = availableNodes[randomIndex];
+        
+        // Place the town
+        selectedNode.building = { ownerId: playerId, type: "town" };
+        
+        // Remove this node from available nodes
+        availableNodes.splice(randomIndex, 1);
+        
+        // Find edges connected to this node and place a road on a random one
+        const connectedEdges = edges.filter(e => 
+          (e.n1 === selectedNode.id || e.n2 === selectedNode.id) && 
+          e.ownerId === null
+        );
+        
+        if (connectedEdges.length > 0) {
+          const randomEdgeIndex = Math.floor(Math.random() * connectedEdges.length);
+          connectedEdges[randomEdgeIndex].ownerId = playerId;
+        }
+        
+        // Remove nodes that are too close (adjacent) to maintain some spacing
+        const adjacentNodeIds = edges
+          .filter(e => e.n1 === selectedNode.id || e.n2 === selectedNode.id)
+          .flatMap(e => [e.n1, e.n2])
+          .filter(id => id !== selectedNode.id);
+        
+        // Remove adjacent nodes from available nodes to prevent too close placement
+        for (let i = availableNodes.length - 1; i >= 0; i--) {
+          if (adjacentNodeIds.includes(availableNodes[i].id)) {
+            availableNodes.splice(i, 1);
+          }
+        }
+      }
+    }
+    
+    return newBoard;
+  };
+
   // Initialize a new game
   const startGame = () => {
     const ppl = Array.from({ length: numPlayers }, (_, i) => ({
@@ -299,6 +372,12 @@ export default function CatanSandbox() {
       color: DEFAULT_COLORS[i],
       resources: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
     }));
+    
+    // Create a new board with initial placements
+    const newBoard = generateBoard();
+    const boardWithInitialPlacements = placeInitialBuildings(newBoard);
+    setBoard(boardWithInitialPlacements);
+    
     setPlayers(ppl);
     setCurrent(0);
     setStage("play");
@@ -314,7 +393,8 @@ export default function CatanSandbox() {
     setMode("select");
     setLastRoll(null);
     setSelection(null);
-    rerandomize();
+    // Generate a fresh board without initial placements
+    setBoard(generateBoard());
   };
 
   const endTurn = () => {
@@ -701,9 +781,18 @@ export default function CatanSandbox() {
             </div>
 
             <div className="rounded-2xl p-4 border" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <div className="text-white/90 font-semibold">Players</div>
-                <div className="text-white/70 text-sm">Current: <span style={{ color: players[current]?.color || "#fff" }} className="font-semibold">{players[current]?.name}</span></div>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full border" style={{ 
+                  borderColor: players[current]?.color || "rgba(255,255,255,0.2)",
+                  backgroundColor: `${players[current]?.color}20` || "rgba(255,255,255,0.05)"
+                }}>
+                  <span className="text-white/70 text-sm">Current Turn:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: players[current]?.color || "#fff" }}></span>
+                    <span style={{ color: players[current]?.color || "#fff" }} className="font-semibold text-sm">{players[current]?.name}</span>
+                  </div>
+                </div>
               </div>
               <div className="mt-3 grid gap-3">
                 {players.map((p, idx) => (
