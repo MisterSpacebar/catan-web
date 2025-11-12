@@ -43,6 +43,13 @@ const NUMBER_TOKENS = [
 
 const DEFAULT_COLORS = ["#1976d2", "#e53935", "#8e24aa", "#ef6c00"]; // blue, red, purple, orange
 
+// Building costs (standard Catan rules)
+const BUILDING_COSTS = {
+  road: { wood: 1, brick: 1 },
+  town: { wood: 1, brick: 1, wheat: 1, sheep: 1 },
+  city: { wheat: 2, ore: 3 }, // upgrade cost from town
+};
+
 function randShuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -159,11 +166,34 @@ function rollDice() {
   return { total: d1 + d2, d1, d2 };
 }
 
+// Helper functions for resource management
+function canAfford(playerResources, cost) {
+  return Object.entries(cost).every(([resource, amount]) => 
+    (playerResources[resource] || 0) >= amount
+  );
+}
+
+function deductResources(playerResources, cost) {
+  const newResources = { ...playerResources };
+  Object.entries(cost).forEach(([resource, amount]) => {
+    newResources[resource] = (newResources[resource] || 0) - amount;
+  });
+  return newResources;
+}
+
+function addResources(playerResources, gains) {
+  const newResources = { ...playerResources };
+  Object.entries(gains).forEach(([resource, amount]) => {
+    newResources[resource] = (newResources[resource] || 0) + amount;
+  });
+  return newResources;
+}
+
 function PlayerPanel({ player, isActive, onSelect }) {
   const keys = ["wood", "brick", "wheat", "sheep", "ore"]; 
   return (
     <div
-      className={`rounded-2xl p-3 shadow ${isActive ? "ring-2" : "ring-0"}`}
+      className={`rounded-xl p-3 shadow cursor-pointer transition-all duration-200 ${isActive ? "ring-2" : "ring-0"} hover:bg-opacity-80`}
       style={{
         background: "#101418",
         color: "#e5e7eb",
@@ -172,31 +202,30 @@ function PlayerPanel({ player, isActive, onSelect }) {
       }}
       onClick={onSelect}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-1 mb-2">
         <div className="flex items-center gap-2">
-          <div className="font-semibold" style={{ color: player.color }}>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.color }}></span>
+          <div className="font-semibold text-sm" style={{ color: player.color }}>
             {player.name}
           </div>
-          {isActive && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold text-black" style={{ backgroundColor: player.color }}>
-              <span>●</span>
-              <span>TURN</span>
-            </div>
-          )}
         </div>
-        <div className="text-xs opacity-80">(id {player.id+1})</div>
+        {isActive && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold text-white bg-green-600">
+            <span>●</span>
+          </div>
+        )}
       </div>
-      <div className="mt-2 grid grid-cols-5 gap-2 text-xs">
+      <div className="grid grid-cols-5 gap-1 text-xs">
         {keys.map((k) => (
-          <div key={k} className="rounded-lg px-2 py-1" style={{ background: "#0b0f13", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="flex items-center gap-1">
+          <div key={k} className="rounded px-1 py-1 text-center" style={{ background: "#0b0f13", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex items-center justify-center gap-1 mb-0.5">
               <span
-                className="inline-block w-2 h-2 rounded"
+                className="inline-block w-1.5 h-1.5 rounded"
                 style={{ background: resourceColor(k) }}
               />
-              <span className="capitalize">{k}</span>
+              <span className="text-white/70 text-xs capitalize truncate">{k}</span>
             </div>
-            <div className="mt-1 text-center text-base font-semibold">{player.resources[k] || 0}</div>
+            <div className="text-xs font-semibold">{player.resources[k] || 0}</div>
           </div>
         ))}
       </div>
@@ -205,29 +234,60 @@ function PlayerPanel({ player, isActive, onSelect }) {
 }
 
 function Toolbar({ mode, setMode, onNewBoard, onRandomize, onEndTurn, onReset, canMoveRobber }) {
-  const Button = ({ label, active, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1 rounded-xl border text-sm ${active ? "bg-white text-black" : "bg-transparent text-white"}`}
-      style={{ borderColor: "rgba(255,255,255,0.2)" }}
-    >
-      {label}
-    </button>
-  );
+  const Button = ({ label, active, onClick, variant = "default" }) => {
+    const baseClass = "px-3 py-1 rounded-xl border text-sm font-medium transition-all duration-200 transform";
+    let colorClass = "";
+    
+    if (variant === "primary") {
+      colorClass = active 
+        ? "bg-blue-600 text-white border-blue-500 shadow-lg" 
+        : "bg-blue-500 text-white border-blue-400 hover:bg-blue-400 hover:shadow-md active:scale-95";
+    } else if (variant === "secondary") {
+      colorClass = active 
+        ? "bg-green-600 text-white border-green-500 shadow-lg" 
+        : "bg-green-500 text-white border-green-400 hover:bg-green-400 hover:shadow-md active:scale-95";
+    } else if (variant === "danger") {
+      colorClass = active 
+        ? "bg-red-600 text-white border-red-500 shadow-lg" 
+        : "bg-red-500 text-white border-red-400 hover:bg-red-400 hover:shadow-md active:scale-95";
+    } else {
+      colorClass = active 
+        ? "bg-white text-black border-gray-300 shadow-lg" 
+        : "bg-transparent text-white border-white/20 hover:bg-white/10 hover:border-white/30 active:scale-95";
+    }
+    
+    return (
+      <button
+        onClick={onClick}
+        className={`${baseClass} ${colorClass}`}
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button label="Select" active={mode === "select"} onClick={() => setMode("select")} />
-      <Button label="Build Road" active={mode === "build-road"} onClick={() => setMode("build-road")} />
-      <Button label="Build Town" active={mode === "build-town"} onClick={() => setMode("build-town")} />
-      <Button label="Build City" active={mode === "build-city"} onClick={() => setMode("build-city")} />
-      <Button label={canMoveRobber ? "Move Robber" : "Robber"} active={mode === "move-robber"} onClick={() => setMode("move-robber")} />
-      <span className="mx-2 opacity-60">|</span>
-      <Button label="End Turn" onClick={onEndTurn} />
-      <span className="mx-2 opacity-60">|</span>
-      <Button label="New Game" onClick={onNewBoard} />
-      <Button label="Reroll Setup" onClick={onRandomize} />
-      <Button label="Reset All" onClick={onReset} />
+    <div className="flex flex-col gap-3">
+      {/* Main Actions Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button label="Select" active={mode === "select"} onClick={() => setMode("select")} />
+        <span className="mx-1 opacity-40">|</span>
+        <Button label="Build Road" active={mode === "build-road"} onClick={() => setMode("build-road")} variant="primary" />
+        <Button label="Build Town" active={mode === "build-town"} onClick={() => setMode("build-town")} variant="primary" />
+        <Button label="Build City" active={mode === "build-city"} onClick={() => setMode("build-city")} variant="primary" />
+        <span className="mx-1 opacity-40">|</span>
+        <Button label="Trade" active={mode === "trade"} onClick={() => setMode("trade")} variant="secondary" />
+        <Button label={canMoveRobber ? "Move Robber" : "Robber"} active={mode === "move-robber"} onClick={() => setMode("move-robber")} variant="danger" />
+      </div>
+      
+      {/* Game Controls Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button label="End Turn" onClick={onEndTurn} variant="secondary" />
+        <span className="mx-1 opacity-40">|</span>
+        <Button label="New Game" onClick={onNewBoard} />
+        <Button label="Reroll Setup" onClick={onRandomize} />
+        <Button label="Reset All" onClick={onReset} />
+      </div>
     </div>
   );
 }
@@ -237,9 +297,9 @@ function DicePanel({ lastRoll, onRoll }) {
     <div className="flex items-center gap-3">
       <button
         onClick={onRoll}
-        className="px-4 py-2 rounded-xl border bg-white text-black font-semibold"
+        className="px-6 py-3 rounded-xl border-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 border-yellow-400"
       >
-        Roll Dice
+        🎲 Roll Dice 🎲
       </button>
       <div className="text-white/80 text-sm">
         {lastRoll ? (
@@ -249,6 +309,213 @@ function DicePanel({ lastRoll, onRoll }) {
         ) : (
           <span>No roll yet</span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ProductionDisplay({ productionData }) {
+  if (!productionData || !productionData.players.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 p-3 rounded-xl bg-[#0b0f13] border border-white/10">
+      <div className="text-white/90 text-sm font-semibold mb-2 flex items-center gap-2">
+        <span className="bg-green-500 w-3 h-3 rounded"></span>
+        Last Production (Roll: {productionData.rollTotal})
+      </div>
+      <div className="space-y-2">
+        {productionData.players.map((playerProduction) => (
+          <div key={playerProduction.playerId} className="flex items-center justify-between p-2 rounded-lg bg-[#101418]">
+            <div className="flex items-center gap-2">
+              <span 
+                className="w-3 h-3 rounded" 
+                style={{ backgroundColor: playerProduction.playerColor }}
+              ></span>
+              <span className="text-white/90 text-sm font-medium">
+                {playerProduction.playerName}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {playerProduction.resources.map(({ resource, amount }) => (
+                <div key={resource} className="flex items-center gap-1 px-2 py-1 rounded bg-[#0b0f13]">
+                  <span 
+                    className="w-2 h-2 rounded" 
+                    style={{ backgroundColor: resourceColor(resource) }}
+                  ></span>
+                  <span className="text-white/80 text-xs capitalize">{resource}</span>
+                  <span className="text-white font-semibold text-xs">+{amount}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TradePanel({ currentPlayer, onTrade, onClose }) {
+  const [giveAmounts, setGiveAmounts] = useState({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
+  const [receiveAmounts, setReceiveAmounts] = useState({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
+  const resources = ["wood", "brick", "wheat", "sheep", "ore"];
+  
+  // Calculate total resources being given and received
+  const totalGive = Object.values(giveAmounts).reduce((sum, val) => sum + val, 0);
+  const totalReceive = Object.values(receiveAmounts).reduce((sum, val) => sum + val, 0);
+  
+  // Check if trade is valid (4:1 ratio, player has enough resources)
+  const canTrade = totalGive === 4 && totalReceive === 1 && 
+    Object.entries(giveAmounts).every(([resource, amount]) => 
+      (currentPlayer.resources[resource] || 0) >= amount
+    );
+
+  const handleGiveChange = (resource, amount) => {
+    setGiveAmounts(prev => ({ ...prev, [resource]: Math.max(0, amount) }));
+  };
+
+  const handleReceiveChange = (resource, amount) => {
+    setReceiveAmounts(prev => ({ ...prev, [resource]: Math.max(0, amount) }));
+  };
+
+  const executeTrade = () => {
+    if (!canTrade) {
+      console.log("Trade validation failed:", { canTrade, totalGive, totalReceive, currentPlayer: currentPlayer.resources });
+      return;
+    }
+    
+    // Convert amounts to trade format
+    const giveResource = Object.entries(giveAmounts).find(([, amount]) => amount > 0)?.[0];
+    const receiveResource = Object.entries(receiveAmounts).find(([, amount]) => amount > 0)?.[0];
+    
+    console.log("Attempting trade:", { giveResource, receiveResource, giveAmounts, receiveAmounts });
+    
+    if (giveResource && receiveResource) {
+      onTrade(giveResource, receiveResource);
+      // Reset trade amounts
+      setGiveAmounts({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
+      setReceiveAmounts({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
+    }
+  };
+
+  return (
+    <div className="p-4 rounded-xl border bg-[#101418] space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+      <div className="flex items-center justify-between">
+        <div className="text-white text-lg font-bold">Resource Trading</div>
+        <button
+          onClick={onClose}
+          className="px-3 py-1 rounded-lg border text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+          style={{ borderColor: "rgba(255,255,255,0.25)" }}
+        >
+          ✕ Close
+        </button>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Give Section */}
+        <div className="space-y-3">
+          <div className="text-white/90 font-semibold flex items-center gap-2">
+            <span className="bg-red-500 w-3 h-3 rounded"></span>
+            Give Away (Total: {totalGive}/4)
+          </div>
+          <div className="space-y-2">
+            {resources.map(resource => {
+              const available = currentPlayer.resources[resource] || 0;
+              const maxGive = Math.min(available, 4);
+              return (
+                <div key={resource} className="flex items-center justify-between p-2 rounded-lg bg-[#0b0f13]">
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="w-3 h-3 rounded" 
+                      style={{ backgroundColor: resourceColor(resource) }}
+                    ></span>
+                    <span className="text-white/90 capitalize font-medium">{resource}</span>
+                    <span className="text-white/60 text-xs">({available} available)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleGiveChange(resource, giveAmounts[resource] - 1)}
+                      disabled={giveAmounts[resource] <= 0}
+                      className="w-6 h-6 rounded bg-red-500 text-white text-sm font-bold hover:bg-red-400 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center text-white font-semibold">{giveAmounts[resource]}</span>
+                    <button
+                      onClick={() => handleGiveChange(resource, giveAmounts[resource] + 1)}
+                      disabled={giveAmounts[resource] >= maxGive || totalGive >= 4}
+                      className="w-6 h-6 rounded bg-red-500 text-white text-sm font-bold hover:bg-red-400 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Receive Section */}
+        <div className="space-y-3">
+          <div className="text-white/90 font-semibold flex items-center gap-2">
+            <span className="bg-green-500 w-3 h-3 rounded"></span>
+            Receive (Total: {totalReceive}/1)
+          </div>
+          <div className="space-y-2">
+            {resources.map(resource => (
+              <div key={resource} className="flex items-center justify-between p-2 rounded-lg bg-[#0b0f13]">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-3 h-3 rounded" 
+                    style={{ backgroundColor: resourceColor(resource) }}
+                  ></span>
+                  <span className="text-white/90 capitalize font-medium">{resource}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleReceiveChange(resource, receiveAmounts[resource] - 1)}
+                    disabled={receiveAmounts[resource] <= 0}
+                    className="w-6 h-6 rounded bg-green-500 text-white text-sm font-bold hover:bg-green-400 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-white font-semibold">{receiveAmounts[resource]}</span>
+                  <button
+                    onClick={() => handleReceiveChange(resource, receiveAmounts[resource] + 1)}
+                    disabled={receiveAmounts[resource] >= 1 || totalReceive >= 1}
+                    className="w-6 h-6 rounded bg-green-500 text-white text-sm font-bold hover:bg-green-400 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Trade Action */}
+      <div className="flex items-center justify-between pt-3 border-t border-white/10">
+        <div className="text-sm text-white/70">
+          {totalGive < 4 && totalReceive < 1 && "Select 4 resources to give and 1 to receive"}
+          {totalGive === 4 && totalReceive < 1 && "Now select 1 resource to receive"}
+          {totalGive < 4 && totalReceive === 1 && `Select ${4 - totalGive} more resources to give`}
+          {totalGive > 4 && "Too many resources selected to give"}
+          {totalReceive > 1 && "Can only receive 1 resource"}
+          {!canTrade && totalGive === 4 && totalReceive === 1 && "Not enough resources available"}
+        </div>
+        <button
+          disabled={!canTrade}
+          onClick={executeTrade}
+          className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 ${
+            canTrade 
+              ? "bg-blue-600 text-white hover:bg-blue-500 active:scale-95 shadow-md" 
+              : "bg-gray-600 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          Execute Trade
+        </button>
       </div>
     </div>
   );
@@ -295,9 +562,11 @@ export default function CatanSandbox() {
   const [numPlayers, setNumPlayers] = useState(4);
   const [players, setPlayers] = useState([]);
   const [current, setCurrent] = useState(0);
-  const [mode, setMode] = useState("select"); // select | build-road | build-town | build-city | move-robber
+  const [mode, setMode] = useState("select"); // select | build-road | build-town | build-city | move-robber | trade
   const [lastRoll, setLastRoll] = useState(null);
   const [selection, setSelection] = useState(null); // {type:'node'|'edge'|'hex', id:number}
+  const [lastAction, setLastAction] = useState(null); // For visual feedback
+  const [lastProduction, setLastProduction] = useState(null); // {rollTotal, players: [{playerId, playerName, resources: [{resource, amount}]}]}
 
   // Helper function to place initial settlements and roads
   const placeInitialBuildings = (newBoard) => {
@@ -370,7 +639,7 @@ export default function CatanSandbox() {
       id: i,
       name: `Player ${i + 1}`,
       color: DEFAULT_COLORS[i],
-      resources: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
+      resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 }, // Starting resources
     }));
     
     // Create a new board with initial placements
@@ -384,6 +653,7 @@ export default function CatanSandbox() {
     setMode("select");
     setLastRoll(null);
     setSelection(null);
+    setLastProduction(null);
   };
 
   const newGame = () => {
@@ -393,6 +663,7 @@ export default function CatanSandbox() {
     setMode("select");
     setLastRoll(null);
     setSelection(null);
+    setLastProduction(null);
     // Generate a fresh board without initial placements
     setBoard(generateBoard());
   };
@@ -401,6 +672,7 @@ export default function CatanSandbox() {
     setCurrent((c) => (players.length ? (c + 1) % players.length : 0));
     setMode("select");
     setSelection(null);
+    setLastProduction(null); // Clear production display for new turn
   };
 
   const awardProduction = (rollTotal) => {
@@ -410,6 +682,7 @@ export default function CatanSandbox() {
     const nodes = board.nodes;
 
     const newPlayers = players.map((p) => ({ ...p, resources: { ...p.resources } }));
+    const productionTracking = {}; // Track production by player ID
 
     tiles.forEach((tile, hexIdx) => {
       if (tile.hasRobber) return; // blocked
@@ -423,13 +696,38 @@ export default function CatanSandbox() {
         if (n.building && n.adjHexes.includes(hexIdx)) {
           const amt = n.building.type === "city" ? 2 : 1;
           const owner = n.building.ownerId;
+          
+          // Update player resources
           newPlayers[owner].resources[resource] =
             (newPlayers[owner].resources[resource] || 0) + amt;
+          
+          // Track production for display
+          if (!productionTracking[owner]) {
+            productionTracking[owner] = {};
+          }
+          productionTracking[owner][resource] = 
+            (productionTracking[owner][resource] || 0) + amt;
         }
       });
     });
 
     setPlayers(newPlayers);
+
+    // Set production tracking for display
+    const productionData = {
+      rollTotal,
+      players: Object.entries(productionTracking).map(([playerId, resources]) => ({
+        playerId: parseInt(playerId),
+        playerName: players[parseInt(playerId)].name,
+        playerColor: players[parseInt(playerId)].color,
+        resources: Object.entries(resources).map(([resource, amount]) => ({
+          resource,
+          amount
+        }))
+      }))
+    };
+    
+    setLastProduction(productionData.players.length > 0 ? productionData : null);
   };
 
   const onRollDice = () => {
@@ -452,39 +750,129 @@ export default function CatanSandbox() {
   };
 
   const tryBuildOnNode = (nodeId, buildType) => {
+    const cost = BUILDING_COSTS[buildType];
+    const currentPlayer = players[current];
+    
+    // Check if player can afford the building
+    if (!canAfford(currentPlayer.resources, cost)) {
+      setLastAction({ type: 'error', message: `Not enough resources for ${buildType}!`, timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return; // Can't afford it
+    }
+
+    let buildSuccessful = false;
+
     setBoard((b) => {
       const node = b.nodes[nodeId];
       if (!node) return b;
       const building = node.building;
+      
       if (buildType === "town") {
-        if (building) return b; // occupied
+        if (building) {
+          setLastAction({ type: 'error', message: 'Location already occupied!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b; // occupied
+        }
         const updated = { ...node, building: { ownerId: current, type: "town" } };
         const nodes = b.nodes.slice();
         nodes[nodeId] = updated;
+        buildSuccessful = true;
         return { ...b, nodes };
       }
+      
       if (buildType === "city") {
-        if (!building) return b; // need existing town
-        if (building.ownerId !== current) return b;
-        if (building.type === "city") return b;
+        if (!building) {
+          setLastAction({ type: 'error', message: 'Need a town first!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b; // need existing town
+        }
+        if (building.ownerId !== current) {
+          setLastAction({ type: 'error', message: 'Not your town!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b;
+        }
+        if (building.type === "city") {
+          setLastAction({ type: 'error', message: 'Already a city!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b;
+        }
         const updated = { ...node, building: { ownerId: current, type: "city" } };
         const nodes = b.nodes.slice();
         nodes[nodeId] = updated;
+        buildSuccessful = true;
         return { ...b, nodes };
       }
+      
       return b;
     });
+
+    if (buildSuccessful) {
+      // Deduct resources from player
+      setPlayers(prevPlayers => {
+        const newPlayers = [...prevPlayers];
+        newPlayers[current] = {
+          ...currentPlayer,
+          resources: deductResources(currentPlayer.resources, cost)
+        };
+        return newPlayers;
+      });
+
+      // Show success feedback
+      setLastAction({ 
+        type: 'success', 
+        message: `${buildType} built successfully!`, 
+        timestamp: Date.now() 
+      });
+      setTimeout(() => setLastAction(null), 2000);
+    }
   };
 
   const tryBuildOnEdge = (edgeId) => {
+    const cost = BUILDING_COSTS.road;
+    const currentPlayer = players[current];
+    
+    // Check if player can afford the road
+    if (!canAfford(currentPlayer.resources, cost)) {
+      setLastAction({ type: 'error', message: 'Not enough resources for road!', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return; // Can't afford it
+    }
+
+    let buildSuccessful = false;
+
     setBoard((b) => {
       const edge = b.edges[edgeId];
       if (!edge) return b;
-      if (edge.ownerId != null) return b; // occupied
+      if (edge.ownerId != null) {
+        setLastAction({ type: 'error', message: 'Road already exists here!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b; // occupied
+      }
       const edges = b.edges.slice();
       edges[edgeId] = { ...edge, ownerId: current };
+      buildSuccessful = true;
       return { ...b, edges };
     });
+
+    if (buildSuccessful) {
+      // Deduct resources from player
+      setPlayers(prevPlayers => {
+        const newPlayers = [...prevPlayers];
+        newPlayers[current] = {
+          ...currentPlayer,
+          resources: deductResources(currentPlayer.resources, cost)
+        };
+        return newPlayers;
+      });
+
+      // Show success feedback
+      setLastAction({ 
+        type: 'success', 
+        message: 'Road built successfully!', 
+        timestamp: Date.now() 
+      });
+      setTimeout(() => setLastAction(null), 2000);
+    }
   };
 
   // Click handlers --------------------------------------------------
@@ -516,6 +904,42 @@ export default function CatanSandbox() {
     setSelection({ type: "edge", id: edgeId });
   };
 
+  // Trade function (4:1 trade - 4 of one resource for 1 of another)
+  const executeTrade = (giveResource, receiveResource) => {
+    const currentPlayer = players[current];
+    
+    // Check if player has at least 4 of the resource to give
+    if ((currentPlayer.resources[giveResource] || 0) < 4) {
+      setLastAction({ type: 'error', message: `Not enough ${giveResource} to trade! Need 4, have ${currentPlayer.resources[giveResource] || 0}`, timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 3000);
+      return; // Can't afford the trade
+    }
+
+    // Execute the trade with visual feedback
+    setPlayers(prevPlayers => {
+      const newPlayers = [...prevPlayers];
+      const newResources = { ...currentPlayer.resources };
+      newResources[giveResource] = (newResources[giveResource] || 0) - 4;
+      newResources[receiveResource] = (newResources[receiveResource] || 0) + 1;
+      
+      newPlayers[current] = {
+        ...currentPlayer,
+        resources: newResources
+      };
+      return newPlayers;
+    });
+
+    // Show success feedback
+    setLastAction({ 
+      type: 'success', 
+      message: `Trade completed: 4 ${giveResource} → 1 ${receiveResource}`, 
+      timestamp: Date.now() 
+    });
+    setTimeout(() => setLastAction(null), 3000);
+    
+    console.log(`Trade completed: 4 ${giveResource} → 1 ${receiveResource}`);
+  };
+
   // Action panel for selected element -------------------------------
   const SelectedActions = () => {
     if (!selection) return null;
@@ -523,8 +947,10 @@ export default function CatanSandbox() {
 
     if (type === "node") {
       const node = board.nodes[id];
-      const canTown = !node.building;
-      const canCity = node.building && node.building.ownerId === current && node.building.type === "town";
+      const currentPlayer = players[current];
+      const canTown = !node.building && canAfford(currentPlayer.resources, BUILDING_COSTS.town);
+      const canCity = node.building && node.building.ownerId === current && node.building.type === "town" && canAfford(currentPlayer.resources, BUILDING_COSTS.city);
+      
       return (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-2xl border bg-[#0b0f13] text-white shadow-xl p-3 flex items-center gap-2">
@@ -533,6 +959,7 @@ export default function CatanSandbox() {
               disabled={!canTown}
               onClick={() => tryBuildOnNode(id, "town")}
               className={`px-3 py-1 rounded-xl border text-sm ${canTown ? "bg-white text-black" : "opacity-40"}`}
+              title={!node.building ? `Town: ${Object.entries(BUILDING_COSTS.town).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Node occupied'}
             >
               Build Town
             </button>
@@ -540,6 +967,7 @@ export default function CatanSandbox() {
               disabled={!canCity}
               onClick={() => tryBuildOnNode(id, "city")}
               className={`px-3 py-1 rounded-xl border text-sm ${canCity ? "bg-white text-black" : "opacity-40"}`}
+              title={node.building?.type === "town" ? `City: ${Object.entries(BUILDING_COSTS.city).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Need town first'}
             >
               Upgrade to City
             </button>
@@ -557,7 +985,9 @@ export default function CatanSandbox() {
 
     if (type === "edge") {
       const edge = board.edges[id];
-      const canRoad = edge.ownerId == null;
+      const currentPlayer = players[current];
+      const canRoad = edge.ownerId == null && canAfford(currentPlayer.resources, BUILDING_COSTS.road);
+      
       return (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-2xl border bg-[#0b0f13] text-white shadow-xl p-3 flex items-center gap-2">
@@ -566,6 +996,7 @@ export default function CatanSandbox() {
               disabled={!canRoad}
               onClick={() => tryBuildOnEdge(id)}
               className={`px-3 py-1 rounded-xl border text-sm ${canRoad ? "bg-white text-black" : "opacity-40"}`}
+              title={edge.ownerId == null ? `Road: ${Object.entries(BUILDING_COSTS.road).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Edge occupied'}
             >
               Build Road
             </button>
@@ -615,6 +1046,22 @@ export default function CatanSandbox() {
 
   return (
     <div className="w-full min-h-screen" style={{ background: "#0b0f13" }}>
+      {/* Action Feedback Notification */}
+      {lastAction && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 font-medium ${
+          lastAction.type === 'success' 
+            ? 'bg-green-600 text-white border border-green-500' 
+            : 'bg-red-600 text-white border border-red-500'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-lg">
+              {lastAction.type === 'success' ? '✓' : '⚠'}
+            </span>
+            <span>{lastAction.message}</span>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto p-4">
         <h1 className="text-2xl font-bold text-white">Catan Sandbox (3–4 players, JS/React)</h1>
         {stage === "setup" ? (
@@ -656,8 +1103,9 @@ export default function CatanSandbox() {
           </div>
         ) : (
           <div className="mt-4 grid lg:grid-cols-[1fr_360px] gap-6">
-            <div className="rounded-2xl p-4 border" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-              <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl p-4 border space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+              {/* Toolbar Section */}
+              <div className="flex items-start justify-between gap-4">
                 <Toolbar
                   mode={mode}
                   setMode={setMode}
@@ -667,8 +1115,20 @@ export default function CatanSandbox() {
                   onReset={newGame}
                   canMoveRobber={true}
                 />
-                <DicePanel lastRoll={lastRoll} onRoll={onRollDice} />
+                {mode !== "trade" && (
+                  <DicePanel lastRoll={lastRoll} onRoll={onRollDice} />
+                )}
               </div>
+
+              {/* Trade Panel (when active) */}
+              {mode === "trade" && (
+                <TradePanel 
+                  key={`trade-${current}-${JSON.stringify(players[current]?.resources)}`}
+                  currentPlayer={players[current]} 
+                  onTrade={executeTrade} 
+                  onClose={() => setMode("select")} 
+                />
+              )}
 
               <div className="mt-4 overflow-auto rounded-xl" style={{ background: "#0e141a" }}>
                 <svg
@@ -781,22 +1241,78 @@ export default function CatanSandbox() {
             </div>
 
             <div className="rounded-2xl p-4 border" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-white/90 font-semibold">Players</div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-full border" style={{ 
-                  borderColor: players[current]?.color || "rgba(255,255,255,0.2)",
-                  backgroundColor: `${players[current]?.color}20` || "rgba(255,255,255,0.05)"
-                }}>
-                  <span className="text-white/70 text-sm">Current Turn:</span>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: players[current]?.color || "#fff" }}></span>
-                    <span style={{ color: players[current]?.color || "#fff" }} className="font-semibold text-sm">{players[current]?.name}</span>
+              <div className="text-white/90 font-semibold mb-4">Game Status</div>
+              
+              {/* 2x3 Grid Layout */}
+              <div className="grid grid-cols-2 grid-rows-3 gap-3 h-[500px]">
+                {/* Row 1: Current Turn */}
+                <div className="rounded-xl p-3 border flex flex-col" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#101418" }}>
+                  <div className="text-white/90 font-semibold mb-2 text-sm">Current Turn</div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full border flex-grow" style={{ 
+                    borderColor: players[current]?.color || "rgba(255,255,255,0.2)",
+                    backgroundColor: players[current]?.color ? `${players[current].color}20` : "rgba(255,255,255,0.05)"
+                  }}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: players[current]?.color || "#fff" }}></span>
+                      <span style={{ color: players[current]?.color || "#fff" }} className="font-semibold text-sm">{players[current]?.name || "No Player"}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="mt-3 grid gap-3">
-                {players.map((p, idx) => (
-                  <PlayerPanel key={p.id} player={p} isActive={idx === current} onSelect={() => setCurrent(idx)} />
+                
+                {/* Row 1: Last Production */}
+                <div className="rounded-xl p-3 border flex flex-col" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#101418" }}>
+                  <div className="text-white/90 font-semibold mb-2 text-sm">Last Production</div>
+                  <div className="flex-grow overflow-hidden">
+                    {lastProduction && lastProduction.players.length > 0 ? (
+                      <div className="space-y-2 h-full">
+                        <div className="text-white/70 text-xs">Roll: {lastProduction.rollTotal}</div>
+                        <div className="space-y-1 overflow-y-auto h-full">
+                          {lastProduction.players.map((playerProduction) => (
+                            <div key={playerProduction.playerId} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1">
+                                <span 
+                                  className="w-2 h-2 rounded" 
+                                  style={{ backgroundColor: playerProduction.playerColor }}
+                                ></span>
+                                <span className="text-white/80 truncate">{playerProduction.playerName}</span>
+                              </div>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {playerProduction.resources.map(({ resource, amount }) => (
+                                  <div key={resource} className="flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
+                                    <span 
+                                      className="w-1.5 h-1.5 rounded" 
+                                      style={{ backgroundColor: resourceColor(resource) }}
+                                    ></span>
+                                    <span className="text-white/70 text-xs capitalize">{resource}</span>
+                                    <span className="text-white font-semibold text-xs">+{amount}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-white/50 text-xs flex items-center justify-center h-full">No recent production</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Row 2-3: Players */}
+                {[0, 1, 2, 3].map((playerIndex) => (
+                  <div key={playerIndex} className="rounded-xl border" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                    {players[playerIndex] ? (
+                      <PlayerPanel 
+                        player={players[playerIndex]} 
+                        isActive={playerIndex === current} 
+                        onSelect={() => setCurrent(playerIndex)} 
+                      />
+                    ) : (
+                      <div className="p-3 h-full flex items-center justify-center rounded-xl" style={{ backgroundColor: "#0a0e12" }}>
+                        <span className="text-white/30 text-xs">Empty Slot</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
