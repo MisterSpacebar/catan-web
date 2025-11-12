@@ -241,7 +241,61 @@ function generateBoard() {
     node.canBuild = node.adjHexes.some(hexIdx => !tiles[hexIdx].isWater);
   });
 
-  return { tiles, nodes, edges };
+  // Before filtering, transfer harbors from water-only nodes to nearby land-adjacent nodes
+  const waterOnlyNodes = nodes.filter(node => !node.canBuild && node.harbors.length > 0);
+  waterOnlyNodes.forEach(waterNode => {
+    // Find the closest land-adjacent node
+    const nearbyLandNodes = nodes.filter(node => 
+      node.canBuild && 
+      Math.abs(node.x - waterNode.x) < TILE_SIZE * 1.5 && 
+      Math.abs(node.y - waterNode.y) < TILE_SIZE * 1.5
+    );
+    
+    if (nearbyLandNodes.length > 0) {
+      // Transfer harbors to the closest land node
+      const closestNode = nearbyLandNodes.reduce((closest, current) => {
+        const closestDist = Math.sqrt((closest.x - waterNode.x) ** 2 + (closest.y - waterNode.y) ** 2);
+        const currentDist = Math.sqrt((current.x - waterNode.x) ** 2 + (current.y - waterNode.y) ** 2);
+        return currentDist < closestDist ? current : closest;
+      });
+      
+      // Add harbors to the closest land node (avoiding duplicates)
+      waterNode.harbors.forEach(harbor => {
+        if (!closestNode.harbors.some(h => h.type === harbor.type && h.resource === harbor.resource)) {
+          closestNode.harbors.push(harbor);
+        }
+      });
+    }
+  });
+
+  // Filter out nodes that are only adjacent to water tiles
+  // Keep only nodes that are adjacent to at least one land tile
+  const filteredNodes = nodes.filter(node => {
+    // Keep nodes that are buildable (adjacent to land)
+    return node.canBuild;
+  });
+
+  // Create a mapping from old node IDs to new node IDs
+  const nodeIdMapping = new Map();
+  filteredNodes.forEach((node, newIndex) => {
+    nodeIdMapping.set(node.id, newIndex);
+    node.id = newIndex; // Update to new sequential ID
+  });
+
+  // Filter out edges that connect to removed nodes
+  // Only keep edges where both nodes are connected to land (both survived filtering)
+  const filteredEdges = edges.filter(edge => {
+    const hasNode1 = nodeIdMapping.has(edge.n1);
+    const hasNode2 = nodeIdMapping.has(edge.n2);
+    return hasNode1 && hasNode2;
+  }).map((edge, newIndex) => ({
+    ...edge,
+    id: newIndex,
+    n1: nodeIdMapping.get(edge.n1),
+    n2: nodeIdMapping.get(edge.n2)
+  }));
+
+  return { tiles, nodes: filteredNodes, edges: filteredEdges };
 }
 
 function resourceColor(key) {
@@ -801,9 +855,8 @@ export default function CatanSandbox() {
       resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 }, // Starting resources
     }));
     
-    // Create a new board with initial placements
-    const newBoard = generateBoard();
-    const boardWithInitialPlacements = placeInitialBuildings(newBoard);
+    // Use the existing board (that may have been customized) and add initial placements
+    const boardWithInitialPlacements = placeInitialBuildings(board);
     setBoard(boardWithInitialPlacements);
     
     setPlayers(ppl);
