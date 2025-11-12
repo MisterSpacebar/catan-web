@@ -17,6 +17,7 @@ import React, { useMemo, useRef, useState } from "react";
 const TILE_SIZE = 48; // radius of a hex (px)
 const BOARD_PADDING = 30;
 const HEX_RADIUS = 2; // standard Catan board (radius 2) => 19 tiles
+const WATER_RADIUS = 3; // water extends one more ring around the land
 
 const RESOURCES = [
   { key: "wood", label: "Lumber", color: "#2a712dff" },
@@ -25,6 +26,20 @@ const RESOURCES = [
   { key: "brick", label: "Brick", color: "#c62828" },
   { key: "ore", label: "Ore", color: "#757575" },
   { key: "desert", label: "Desert", color: "#d4b483" },
+  { key: "water", label: "Water", color: "#4a90e2" },
+];
+
+// Harbor types
+const HARBORS = [
+  { type: "2:1", resource: "wood", ratio: 2 },
+  { type: "2:1", resource: "brick", ratio: 2 },
+  { type: "2:1", resource: "wheat", ratio: 2 },
+  { type: "2:1", resource: "sheep", ratio: 2 },
+  { type: "2:1", resource: "ore", ratio: 2 },
+  { type: "3:1", resource: "any", ratio: 3 },
+  { type: "3:1", resource: "any", ratio: 3 },
+  { type: "3:1", resource: "any", ratio: 3 },
+  { type: "3:1", resource: "any", ratio: 3 },
 ];
 
 const RESOURCE_DISTRIBUTION = [
@@ -89,28 +104,85 @@ function generateAxialHexes(radius) {
   return hexes; // length 19 for radius=2
 }
 
+// Helper function to calculate axial distance between two hexes
+function axialDistance(hex1, hex2) {
+  return (Math.abs(hex1.q - hex2.q) + Math.abs(hex1.q + hex1.r - hex2.q - hex2.r) + Math.abs(hex1.r - hex2.r)) / 2;
+}
+
+// Helper function to check if hex is on the outer edge (adjacent to land)
+function isOuterEdgeHex(hex, landSet) {
+  const { q, r } = hex;
+  // Check all 6 adjacent hexes
+  const neighbors = [
+    { q: q + 1, r: r },
+    { q: q - 1, r: r },
+    { q: q, r: r + 1 },
+    { q: q, r: r - 1 },
+    { q: q + 1, r: r - 1 },
+    { q: q - 1, r: r + 1 }
+  ];
+  
+  // Must be adjacent to at least one land hex
+  return neighbors.some(neighbor => landSet.has(`${neighbor.q},${neighbor.r}`));
+}
+
 function generateBoard() {
-  // 1) Layout 19 axial hexes, compute centers
-  const axial = generateAxialHexes(HEX_RADIUS);
-  // Shuffle resources & numbers
+  // 1) Generate land tiles (radius 2) and water tiles (radius 3)
+  const landHexes = generateAxialHexes(HEX_RADIUS);
+  const allHexes = generateAxialHexes(WATER_RADIUS);
+  
+  // Separate land and water hexes
+  const landSet = new Set(landHexes.map(({ q, r }) => `${q},${r}`));
+  const waterHexes = allHexes.filter(({ q, r }) => !landSet.has(`${q},${r}`));
+  
+  // Find outer edge water hexes (adjacent to land)
+  const outerEdgeHexes = waterHexes.filter(hex => isOuterEdgeHex(hex, landSet));
+  
+  // Shuffle resources & numbers for land tiles
   const resources = randShuffle(RESOURCE_DISTRIBUTION);
   const numbers = randShuffle(NUMBER_TOKENS);
+  
+  // Place harbors with proper spacing
+  const harbors = [...HARBORS];
+  const harborPlacements = [];
+  const shuffledEdgeHexes = randShuffle([...outerEdgeHexes]);
+  
+  for (const harbor of harbors) {
+    // Find a valid placement (at least distance 2 from other harbors)
+    const validHex = shuffledEdgeHexes.find(hex => {
+      return harborPlacements.every(placedHex => axialDistance(hex, placedHex) >= 2);
+    });
+    
+    if (validHex) {
+      harborPlacements.push(validHex);
+      validHex.harbor = harbor;
+    }
+  }
 
-  // Assign tiles
+  // Assign land tiles
   let numberIdx = 0;
-  const tiles = axial.map(({ q, r }) => {
+  const landTiles = landHexes.map(({ q, r }) => {
     const resource = resources.pop();
     const center = axialToPixel(q, r, TILE_SIZE);
     let number = null;
     if (resource !== "desert") {
       number = numbers[numberIdx++];
     }
-    return { q, r, center, resource, number, hasRobber: resource === "desert" };
+    return { q, r, center, resource, number, hasRobber: resource === "desert", isWater: false };
   });
+
+  // Assign water tiles
+  const waterTiles = waterHexes.map(({ q, r, harbor }) => {
+    const center = axialToPixel(q, r, TILE_SIZE);
+    return { q, r, center, resource: "water", number: null, hasRobber: false, isWater: true, harbor: harbor || null };
+  });
+
+  // Combine all tiles
+  const tiles = [...landTiles, ...waterTiles];
 
   // 2) Build nodes (corners) & edges from tile geometry
   const nodeMap = new Map(); // key -> nodeId
-  const nodes = []; // {id, x, y, adjHexes:[], building:null|{ownerId,type}}
+  const nodes = []; // {id, x, y, adjHexes:[], building:null|{ownerId,type}, harbors:[], canBuild:boolean}
   const edges = []; // {id, n1, n2, ownerId:null}
   const edgeMap = new Map(); // "minId-maxId" -> edgeId
 
@@ -125,15 +197,30 @@ function generateBoard() {
       if (!nodeMap.has(key)) {
         const id = nodes.length;
         nodeMap.set(key, id);
-        nodes.push({ id, x: pt.x, y: pt.y, adjHexes: [hexIdx], building: null });
+        nodes.push({ id, x: pt.x, y: pt.y, adjHexes: [hexIdx], building: null, harbors: [], canBuild: false });
         return id;
       } else {
         const id = nodeMap.get(key);
+        const node = nodes[id];
         // add adjacency if missing
-        if (!nodes[id].adjHexes.includes(hexIdx)) nodes[id].adjHexes.push(hexIdx);
+        if (!node.adjHexes.includes(hexIdx)) node.adjHexes.push(hexIdx);
+        // add harbor if this water tile has one
+        if (tile.harbor && !node.harbors.some(h => h.type === tile.harbor.type && h.resource === tile.harbor.resource)) {
+          node.harbors.push(tile.harbor);
+        }
         return id;
       }
     });
+
+    // If this is a water tile with a harbor, add harbor to its corner nodes
+    if (tile.harbor) {
+      nodeIds.forEach(nodeId => {
+        const node = nodes[nodeId];
+        if (!node.harbors.some(h => h.type === tile.harbor.type && h.resource === tile.harbor.resource)) {
+          node.harbors.push(tile.harbor);
+        }
+      });
+    }
 
     // Ensure edges (six per tile)
     const E = [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]];
@@ -147,6 +234,11 @@ function generateBoard() {
         edges.push({ id, n1, n2, ownerId: null });
       }
     });
+  });
+
+  // Mark nodes as buildable if they're adjacent to at least one land tile
+  nodes.forEach(node => {
+    node.canBuild = node.adjHexes.some(hexIdx => !tiles[hexIdx].isWater);
   });
 
   return { tiles, nodes, edges };
@@ -187,6 +279,35 @@ function addResources(playerResources, gains) {
     newResources[resource] = (newResources[resource] || 0) + amount;
   });
   return newResources;
+}
+
+// Helper function to get available trading ratios for a player
+function getPlayerTradingRatios(playerId, nodes) {
+  const ratios = { default: 4 }; // Default 4:1 trading
+  
+  // Check all nodes where player has buildings
+  nodes.forEach(node => {
+    if (node.building && node.building.ownerId === playerId) {
+      // Check harbors at this node
+      node.harbors.forEach(harbor => {
+        if (harbor.resource === "any") {
+          // 3:1 harbor for any resource
+          ratios.default = Math.min(ratios.default, harbor.ratio);
+        } else {
+          // 2:1 harbor for specific resource
+          ratios[harbor.resource] = Math.min(ratios[harbor.resource] || 4, harbor.ratio);
+        }
+      });
+    }
+  });
+  
+  return ratios;
+}
+
+// Helper function to get the best trading ratio for a resource
+function getBestTradingRatio(playerId, resource, nodes) {
+  const ratios = getPlayerTradingRatios(playerId, nodes);
+  return ratios[resource] || ratios.default;
 }
 
 function PlayerPanel({ player, isActive, onSelect }) {
@@ -356,23 +477,32 @@ function ProductionDisplay({ productionData }) {
   );
 }
 
-function TradePanel({ currentPlayer, onTrade, onClose }) {
+function TradePanel({ currentPlayer, onTrade, onClose, nodes }) {
   const [giveAmounts, setGiveAmounts] = useState({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
   const [receiveAmounts, setReceiveAmounts] = useState({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
   const resources = ["wood", "brick", "wheat", "sheep", "ore"];
+  
+  // Get player's trading ratios based on harbors
+  const tradingRatios = getPlayerTradingRatios(currentPlayer.id, nodes);
   
   // Calculate total resources being given and received
   const totalGive = Object.values(giveAmounts).reduce((sum, val) => sum + val, 0);
   const totalReceive = Object.values(receiveAmounts).reduce((sum, val) => sum + val, 0);
   
-  // Check if trade is valid (4:1 ratio, player has enough resources)
-  const canTrade = totalGive === 4 && totalReceive === 1 && 
+  // Check if trade is valid based on available ratios
+  const giveResource = Object.entries(giveAmounts).find(([, amount]) => amount > 0)?.[0];
+  const requiredRatio = giveResource ? getBestTradingRatio(currentPlayer.id, giveResource, nodes) : 4;
+  
+  const canTrade = totalGive === requiredRatio && totalReceive === 1 && 
     Object.entries(giveAmounts).every(([resource, amount]) => 
       (currentPlayer.resources[resource] || 0) >= amount
     );
 
   const handleGiveChange = (resource, amount) => {
-    setGiveAmounts(prev => ({ ...prev, [resource]: Math.max(0, amount) }));
+    // Reset all give amounts when selecting a new resource (since ratios might be different)
+    const newAmounts = { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 };
+    newAmounts[resource] = Math.max(0, amount);
+    setGiveAmounts(newAmounts);
   };
 
   const handleReceiveChange = (resource, amount) => {
@@ -402,7 +532,23 @@ function TradePanel({ currentPlayer, onTrade, onClose }) {
   return (
     <div className="p-4 rounded-xl border bg-[#101418] space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
       <div className="flex items-center justify-between">
-        <div className="text-white text-lg font-bold">Resource Trading</div>
+        <div>
+          <div className="text-white text-lg font-bold">Resource Trading</div>
+          <div className="text-white/70 text-sm">
+            Your harbors: 
+            {Object.keys(tradingRatios).length > 1 ? (
+              <span className="ml-1">
+                {Object.entries(tradingRatios).map(([resource, ratio]) => (
+                  <span key={resource} className="ml-2">
+                    {resource === 'default' ? `${ratio}:1 (any)` : `${ratio}:1 (${resource})`}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span className="ml-1">4:1 (no harbors)</span>
+            )}
+          </div>
+        </div>
         <button
           onClick={onClose}
           className="px-3 py-1 rounded-lg border text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors"
@@ -417,12 +563,13 @@ function TradePanel({ currentPlayer, onTrade, onClose }) {
         <div className="space-y-3">
           <div className="text-white/90 font-semibold flex items-center gap-2">
             <span className="bg-red-500 w-3 h-3 rounded"></span>
-            Give Away (Total: {totalGive}/4)
+            Give Away (Total: {totalGive}/{requiredRatio})
           </div>
           <div className="space-y-2">
             {resources.map(resource => {
               const available = currentPlayer.resources[resource] || 0;
-              const maxGive = Math.min(available, 4);
+              const resourceRatio = getBestTradingRatio(currentPlayer.id, resource, nodes);
+              const maxGive = Math.min(available, resourceRatio);
               return (
                 <div key={resource} className="flex items-center justify-between p-2 rounded-lg bg-[#0b0f13]">
                   <div className="flex items-center gap-2">
@@ -431,7 +578,9 @@ function TradePanel({ currentPlayer, onTrade, onClose }) {
                       style={{ backgroundColor: resourceColor(resource) }}
                     ></span>
                     <span className="text-white/90 capitalize font-medium">{resource}</span>
-                    <span className="text-white/60 text-xs">({available} available)</span>
+                    <span className="text-white/60 text-xs">
+                      ({available} available, {resourceRatio}:1 ratio)
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -444,7 +593,7 @@ function TradePanel({ currentPlayer, onTrade, onClose }) {
                     <span className="w-8 text-center text-white font-semibold">{giveAmounts[resource]}</span>
                     <button
                       onClick={() => handleGiveChange(resource, giveAmounts[resource] + 1)}
-                      disabled={giveAmounts[resource] >= maxGive || totalGive >= 4}
+                      disabled={giveAmounts[resource] >= maxGive || totalGive >= resourceRatio}
                       className="w-6 h-6 rounded bg-red-500 text-white text-sm font-bold hover:bg-red-400 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                     >
                       +
@@ -498,12 +647,12 @@ function TradePanel({ currentPlayer, onTrade, onClose }) {
       {/* Trade Action */}
       <div className="flex items-center justify-between pt-3 border-t border-white/10">
         <div className="text-sm text-white/70">
-          {totalGive < 4 && totalReceive < 1 && "Select 4 resources to give and 1 to receive"}
-          {totalGive === 4 && totalReceive < 1 && "Now select 1 resource to receive"}
-          {totalGive < 4 && totalReceive === 1 && `Select ${4 - totalGive} more resources to give`}
-          {totalGive > 4 && "Too many resources selected to give"}
+          {totalGive < requiredRatio && totalReceive < 1 && `Select ${requiredRatio} resources to give and 1 to receive`}
+          {totalGive === requiredRatio && totalReceive < 1 && "Now select 1 resource to receive"}
+          {totalGive < requiredRatio && totalReceive === 1 && `Select ${requiredRatio - totalGive} more resources to give`}
+          {totalGive > requiredRatio && "Too many resources selected to give"}
           {totalReceive > 1 && "Can only receive 1 resource"}
-          {!canTrade && totalGive === 4 && totalReceive === 1 && "Not enough resources available"}
+          {!canTrade && totalGive === requiredRatio && totalReceive === 1 && "Not enough resources available"}
         </div>
         <button
           disabled={!canTrade}
@@ -577,9 +726,10 @@ export default function CatanSandbox() {
       .map((tile, index) => tile.resource === "desert" ? index : -1)
       .filter(index => index !== -1);
     
-    // Filter out nodes that are adjacent to desert tiles
+    // Filter out nodes that are adjacent to desert tiles or not buildable
     const availableNodes = nodes.filter(n => {
       if (n.building) return false; // already occupied
+      if (!n.canBuild) return false; // not adjacent to land
       
       // Check if this node is adjacent to any desert tile
       const isAdjacentToDesert = n.adjHexes.some(hexIdx => 
@@ -605,10 +755,19 @@ export default function CatanSandbox() {
         availableNodes.splice(randomIndex, 1);
         
         // Find edges connected to this node and place a road on a random one
-        const connectedEdges = edges.filter(e => 
-          (e.n1 === selectedNode.id || e.n2 === selectedNode.id) && 
-          e.ownerId === null
-        );
+        // Only consider edges where both connected nodes are buildable
+        const connectedEdges = edges.filter(e => {
+          if (e.ownerId !== null) return false; // edge already owned
+          
+          const isConnected = e.n1 === selectedNode.id || e.n2 === selectedNode.id;
+          if (!isConnected) return false;
+          
+          // Check if both nodes connected by this edge are buildable
+          const node1 = nodes.find(n => n.id === e.n1);
+          const node2 = nodes.find(n => n.id === e.n2);
+          
+          return node1?.canBuild && node2?.canBuild;
+        });
         
         if (connectedEdges.length > 0) {
           const randomEdgeIndex = Math.floor(Math.random() * connectedEdges.length);
@@ -765,6 +924,14 @@ export default function CatanSandbox() {
     setBoard((b) => {
       const node = b.nodes[nodeId];
       if (!node) return b;
+      
+      // Check if node is buildable (adjacent to land)
+      if (!node.canBuild) {
+        setLastAction({ type: 'error', message: 'Cannot build here - no adjacent land!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
+      
       const building = node.building;
       
       if (buildType === "town") {
@@ -848,6 +1015,15 @@ export default function CatanSandbox() {
         setTimeout(() => setLastAction(null), 2000);
         return b; // occupied
       }
+      
+      // Check if edge connects to buildable nodes (adjacent to land)
+      const node1 = b.nodes[edge.n1];
+      const node2 = b.nodes[edge.n2];
+      if (!node1.canBuild && !node2.canBuild) {
+        setLastAction({ type: 'error', message: 'Cannot build road here - no adjacent land!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
       const edges = b.edges.slice();
       edges[edgeId] = { ...edge, ownerId: current };
       buildSuccessful = true;
@@ -904,13 +1080,14 @@ export default function CatanSandbox() {
     setSelection({ type: "edge", id: edgeId });
   };
 
-  // Trade function (4:1 trade - 4 of one resource for 1 of another)
+  // Trade function with harbor support
   const executeTrade = (giveResource, receiveResource) => {
     const currentPlayer = players[current];
+    const requiredAmount = getBestTradingRatio(currentPlayer.id, giveResource, board.nodes);
     
-    // Check if player has at least 4 of the resource to give
-    if ((currentPlayer.resources[giveResource] || 0) < 4) {
-      setLastAction({ type: 'error', message: `Not enough ${giveResource} to trade! Need 4, have ${currentPlayer.resources[giveResource] || 0}`, timestamp: Date.now() });
+    // Check if player has enough of the resource to give
+    if ((currentPlayer.resources[giveResource] || 0) < requiredAmount) {
+      setLastAction({ type: 'error', message: `Not enough ${giveResource} to trade! Need ${requiredAmount}, have ${currentPlayer.resources[giveResource] || 0}`, timestamp: Date.now() });
       setTimeout(() => setLastAction(null), 3000);
       return; // Can't afford the trade
     }
@@ -919,7 +1096,7 @@ export default function CatanSandbox() {
     setPlayers(prevPlayers => {
       const newPlayers = [...prevPlayers];
       const newResources = { ...currentPlayer.resources };
-      newResources[giveResource] = (newResources[giveResource] || 0) - 4;
+      newResources[giveResource] = (newResources[giveResource] || 0) - requiredAmount;
       newResources[receiveResource] = (newResources[receiveResource] || 0) + 1;
       
       newPlayers[current] = {
@@ -932,12 +1109,12 @@ export default function CatanSandbox() {
     // Show success feedback
     setLastAction({ 
       type: 'success', 
-      message: `Trade completed: 4 ${giveResource} → 1 ${receiveResource}`, 
+      message: `Trade completed: ${requiredAmount} ${giveResource} → 1 ${receiveResource}`, 
       timestamp: Date.now() 
     });
     setTimeout(() => setLastAction(null), 3000);
     
-    console.log(`Trade completed: 4 ${giveResource} → 1 ${receiveResource}`);
+    console.log(`Trade completed: ${requiredAmount} ${giveResource} → 1 ${receiveResource}`);
   };
 
   // Action panel for selected element -------------------------------
@@ -1062,7 +1239,7 @@ export default function CatanSandbox() {
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto p-4">
+      <div className="max-w-none mx-auto p-4">
         <h1 className="text-2xl font-bold text-white">Catan Sandbox (3–4 players, JS/React)</h1>
         {stage === "setup" ? (
           <div className="mt-4 grid md:grid-cols-2 gap-6">
@@ -1102,8 +1279,8 @@ export default function CatanSandbox() {
             </div>
           </div>
         ) : (
-          <div className="mt-4 grid lg:grid-cols-[1fr_360px] gap-6">
-            <div className="rounded-2xl p-4 border space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+          <div className="mt-4 flex gap-6">
+            <div className="flex-1 rounded-2xl p-4 border space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
               {/* Toolbar Section */}
               <div className="flex items-start justify-between gap-4">
                 <Toolbar
@@ -1125,6 +1302,7 @@ export default function CatanSandbox() {
                 <TradePanel 
                   key={`trade-${current}-${JSON.stringify(players[current]?.resources)}`}
                   currentPlayer={players[current]} 
+                  nodes={board.nodes}
                   onTrade={executeTrade} 
                   onClose={() => setMode("select")} 
                 />
@@ -1166,6 +1344,18 @@ export default function CatanSandbox() {
                         <g>
                           <circle cx={t.center.x} cy={t.center.y} r={8} fill="#000" stroke="#fff" strokeWidth={2} />
                           <text x={t.center.x} y={t.center.y - 14} textAnchor="middle" fontSize={10} fill="#fff">Robber</text>
+                        </g>
+                      )}
+                      {/* Harbor */}
+                      {t.harbor && (
+                        <g>
+                          <circle cx={t.center.x} cy={t.center.y} r={12} fill="#fff" stroke="#333" strokeWidth={2} />
+                          <text x={t.center.x} y={t.center.y + 3} textAnchor="middle" fontSize={8} fill="#333" fontWeight="bold">
+                            {t.harbor.type}
+                          </text>
+                          {t.harbor.resource !== "any" && (
+                            <circle cx={t.center.x} cy={t.center.y - 18} r={4} fill={resourceColor(t.harbor.resource)} stroke="#fff" strokeWidth={1} />
+                          )}
                         </g>
                       )}
                     </g>
@@ -1240,7 +1430,7 @@ export default function CatanSandbox() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 border" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+            <div className="w-80 flex-shrink-0 rounded-2xl p-4 border" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
               <div className="text-white/90 font-semibold mb-4">Game Status</div>
               
               {/* 2x3 Grid Layout */}
@@ -1314,6 +1504,39 @@ export default function CatanSandbox() {
                     )}
                   </div>
                 ))}
+              </div>
+              
+              {/* Resource Legend */}
+              <div className="mt-4 rounded-xl p-3 border" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#101418" }}>
+                <div className="text-white/90 font-semibold mb-3 text-sm">Resource Legend</div>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { resource: 'wood', name: 'Wood (Forest)' },
+                    { resource: 'brick', name: 'Brick (Hills)' },
+                    { resource: 'wheat', name: 'Wheat (Fields)' },
+                    { resource: 'sheep', name: 'Sheep (Pasture)' },
+                    { resource: 'ore', name: 'Ore (Mountains)' },
+                    { resource: 'desert', name: 'Desert (No Resource)' },
+                    { resource: 'water', name: 'Water (Harbors)' }
+                  ].map(({ resource, name }) => {
+                    const color = resourceColor(resource);
+                    return (
+                      <div key={resource} className="flex items-center gap-2 justify-between">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-5 h-5 rounded border-2 border-white/30 flex-shrink-0" 
+                            style={{ 
+                              backgroundColor: color,
+                              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)'
+                            }}
+                          ></div>
+                          <span className="text-white/80 text-xs">{name}</span>
+                        </div>
+                        <span className="text-white/50 text-xs font-mono">{color}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
