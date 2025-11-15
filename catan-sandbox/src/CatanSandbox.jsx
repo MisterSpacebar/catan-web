@@ -65,6 +65,23 @@ const BUILDING_COSTS = {
   city: { wheat: 2, ore: 3 }, // upgrade cost from town
 };
 
+// Development card deck (25 cards total)
+const DEV_CARD_DECK = [
+  // Victory Point cards (5)
+  "victory", "victory", "victory", "victory", "victory",
+  // Knight cards (14)
+  "knight", "knight", "knight", "knight", "knight", "knight", "knight",
+  "knight", "knight", "knight", "knight", "knight", "knight", "knight",
+  // Road Building (2)
+  "road-building", "road-building",
+  // Year of Plenty (2)
+  "year-of-plenty", "year-of-plenty",
+  // Monopoly (2)
+  "monopoly", "monopoly"
+];
+
+const DEV_CARD_COST = { sheep: 1, wheat: 1, ore: 1 };
+
 function randShuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -365,7 +382,7 @@ function getBestTradingRatio(playerId, resource, nodes) {
 }
 
 function PlayerPanel({ player, isActive, onSelect }) {
-  const keys = ["wood", "brick", "wheat", "sheep", "ore"]; 
+  const keys = ["wood", "brick", "wheat", "sheep", "ore"];
   return (
     <div
       className={`rounded-xl p-3 shadow cursor-pointer transition-all duration-200 ${isActive ? "ring-2" : "ring-0"} hover:bg-opacity-80`}
@@ -404,11 +421,39 @@ function PlayerPanel({ player, isActive, onSelect }) {
           </div>
         ))}
       </div>
+      <div className="mt-2 pt-2 border-t border-white/10">
+        <div className="flex items-center justify-between">
+          <span className="text-white/70 text-xs">Victory Points: </span>
+          <span className="text-yellow-400 font-bold text-lg">{player.vp || 0}</span>
+        </div>
+      </div>
+      {/* ADD THIS NEW SECTION HERE - RIGHT AFTER THE VICTORY POINTS DIV ABOVE */}
+      {player.longestRoad && (
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-center gap-2 text-orange-400">
+            <span className="text-lg">🛣️</span>
+            <span className="text-xs font-bold">Longest Road (+2 VP)</span>
+          </div>
+        </div>
+      )}
+      {player.largestArmy && (
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-center gap-2 text-red-400">
+            <span className="text-lg">⚔️</span>
+            <span className="text-xs font-bold">Largest Army (+2 VP)</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+ 
+ 
+ 
+ 
 
-function Toolbar({ mode, setMode, onNewBoard, onRandomize, onEndTurn, onReset, canMoveRobber }) {
+
+function Toolbar({ mode, setMode, onNewBoard, onRandomize, onEndTurn, onReset, canMoveRobber, onBuyDevCard, onShowDevCards }) {
   const Button = ({ label, active, onClick, variant = "default" }) => {
     const baseClass = "px-3 py-1 rounded-xl border text-sm font-medium transition-all duration-200 transform";
     let colorClass = "";
@@ -453,6 +498,8 @@ function Toolbar({ mode, setMode, onNewBoard, onRandomize, onEndTurn, onReset, c
         <span className="mx-1 opacity-40">|</span>
         <Button label="Trade" active={mode === "trade"} onClick={() => setMode("trade")} variant="secondary" />
         <Button label={canMoveRobber ? "Move Robber" : "Robber"} active={mode === "move-robber"} onClick={() => setMode("move-robber")} variant="danger" />
+        <Button label="Buy Dev Card" active={false} onClick={onBuyDevCard} variant="secondary" />
+        <Button label="View Cards" active={false} onClick={onShowDevCards} variant="secondary" />
       </div>
       
       {/* Game Controls Row */}
@@ -758,6 +805,139 @@ function hexPolygonPath(center, size) {
   return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
 }
 
+// FUNCTION FOR VICTORY POINTS 
+function calculateVP(player, board) {
+  let vp = 0;
+
+  // Towns and cities
+  board.nodes.forEach(node => {
+    if (node.building?.ownerId === player.id) {
+      vp += node.building.type === 'town' ? 1 : 2;
+    }
+  });
+
+  // Longest road & largest army (future features)
+  if (player.longestRoad) vp += 2;
+  if (player.largestArmy) vp += 2;
+
+  // Victory dev cards (future features)
+  if (player.devCards) {
+    vp += player.devCards.filter(c => c.type === 'victory').length;
+  }
+
+  return vp;
+}
+
+function checkWinner(players) {
+  return players.find(p => p.vp >= 10);
+}
+
+function calculateLongestRoad(playerId, edges, nodes) {
+  // Find all roads owned by this player
+  const playerEdges = edges.filter(e => e.ownerId === playerId);
+  if (playerEdges.length < 5) return 0; // Need at least 5 roads for longest road
+  
+  // Build adjacency map for player's roads
+  const roadGraph = new Map();
+  playerEdges.forEach(edge => {
+    if (!roadGraph.has(edge.n1)) roadGraph.set(edge.n1, []);
+    if (!roadGraph.has(edge.n2)) roadGraph.set(edge.n2, []);
+    roadGraph.get(edge.n1).push(edge.n2);
+    roadGraph.get(edge.n2).push(edge.n1);
+  });
+  
+  // DFS to find longest path
+  let maxLength = 0;
+  
+  function dfs(node, visited, length) {
+    maxLength = Math.max(maxLength, length);
+    const neighbors = roadGraph.get(node) || [];
+    
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        // Check if there's an opponent's settlement/city blocking the path
+        const neighborNode = nodes[neighbor];
+        if (neighborNode.building && neighborNode.building.ownerId !== playerId) {
+          continue; // Path is blocked
+        }
+        
+        visited.add(neighbor);
+        dfs(neighbor, visited, length + 1);
+        visited.delete(neighbor);
+      }
+    }
+  }
+  
+  // Try starting from each node
+  roadGraph.forEach((_, startNode) => {
+    const visited = new Set([startNode]);
+    dfs(startNode, visited, 0);
+  });
+  
+  return maxLength;
+}
+
+function updateLongestRoad(players, edges, nodes) {
+  // Calculate longest road for each player
+  const roadLengths = players.map(player => ({
+    id: player.id,
+    length: calculateLongestRoad(player.id, edges, nodes)
+  }));
+  
+  // Find the maximum length (must be at least 5)
+  const maxLength = Math.max(...roadLengths.map(r => r.length));
+  
+  if (maxLength < 5) {
+    // No one has longest road
+    return players.map(p => ({ ...p, longestRoad: false }));
+  }
+  
+  // Check if there's a tie at max length
+  const playersWithMax = roadLengths.filter(r => r.length === maxLength);
+  
+  if (playersWithMax.length > 1) {
+    // Tie - keep whoever had it before, or no one if no one had it
+    const currentHolder = players.find(p => p.longestRoad);
+    if (currentHolder && playersWithMax.some(r => r.id === currentHolder.id)) {
+      // Current holder still tied, they keep it
+      return players.map(p => ({ ...p, longestRoad: p.id === currentHolder.id }));
+    } else {
+      // No clear holder
+      return players.map(p => ({ ...p, longestRoad: false }));
+    }
+  }
+  
+  // One clear winner
+  const winnerId = playersWithMax[0].id;
+  return players.map(p => ({ ...p, longestRoad: p.id === winnerId }));
+}
+function updateLargestArmy(players) {
+  // Find max knights played (must be at least 3)
+  const maxKnights = Math.max(...players.map(p => p.knightsPlayed));
+  
+  if (maxKnights < 3) {
+    return players.map(p => ({ ...p, largestArmy: false }));
+  }
+  
+  // Check for ties
+  const playersWithMax = players.filter(p => p.knightsPlayed === maxKnights);
+  
+  if (playersWithMax.length > 1) {
+    // Tie - keep whoever had it before
+    const currentHolder = players.find(p => p.largestArmy);
+    if (currentHolder && playersWithMax.some(p => p.id === currentHolder.id)) {
+      return players.map(p => ({ ...p, largestArmy: p.id === currentHolder.id }));
+    } else {
+      return players.map(p => ({ ...p, largestArmy: false }));
+    }
+  }
+  
+  // One clear winner
+  const winnerId = playersWithMax[0].id;
+  return players.map(p => ({ ...p, largestArmy: p.id === winnerId }));
+}
+
+
 export default function CatanSandbox() {
   const { board, setBoard, rerandomize, bbox } = useBoard();
 
@@ -770,7 +950,10 @@ export default function CatanSandbox() {
   const [selection, setSelection] = useState(null); // {type:'node'|'edge'|'hex', id:number}
   const [lastAction, setLastAction] = useState(null); // For visual feedback
   const [lastProduction, setLastProduction] = useState(null); // {rollTotal, players: [{playerId, playerName, resources: [{resource, amount}]}]}
-
+  const [devCardDeck, setDevCardDeck] = useState([]);
+  const [showDevCardPanel, setShowDevCardPanel] = useState(false);
+  const [showMonopolyModal, setShowMonopolyModal] = useState(false);
+  const [showYearOfPlentyModal, setShowYearOfPlentyModal] = useState(false);
   // Helper function to place initial settlements and roads
   const placeInitialBuildings = (newBoard) => {
     const { nodes, edges, tiles } = newBoard;
@@ -853,7 +1036,18 @@ export default function CatanSandbox() {
       name: `Player ${i + 1}`,
       color: DEFAULT_COLORS[i],
       resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 }, // Starting resources
+      vp: 0,
+      devCards: [],
+      playedDevCards: [],
+      knightsPlayed: 0,
+      largestArmy: false,
+      longestRoad: false,
+      boughtDevCardThisTurn: false
     }));
+    
+    // Shuffle dev card deck
+    const shuffledDeck = randShuffle([...DEV_CARD_DECK]);
+    setDevCardDeck(shuffledDeck);
     
     // Use the existing board (that may have been customized) and add initial placements
     const boardWithInitialPlacements = placeInitialBuildings(board);
@@ -881,10 +1075,19 @@ export default function CatanSandbox() {
   };
 
   const endTurn = () => {
+    // Enable dev cards bought this turn to be playable next turn
+    setPlayers(prevPlayers => 
+      prevPlayers.map(p => ({
+        ...p,
+        devCards: p.devCards.map(card => ({ ...card, canPlay: true })),
+        boughtDevCardThisTurn: false
+      }))
+    );
+    
     setCurrent((c) => (players.length ? (c + 1) % players.length : 0));
     setMode("select");
     setSelection(null);
-    setLastProduction(null); // Clear production display for new turn
+    setLastProduction(null);
   };
 
   const awardProduction = (rollTotal) => {
@@ -961,53 +1164,147 @@ export default function CatanSandbox() {
     setSelection(null);
   };
 
-  const tryBuildOnNode = (nodeId, buildType) => {
-    const cost = BUILDING_COSTS[buildType];
-    const currentPlayer = players[current];
-    
-    // Check if player can afford the building
-    if (!canAfford(currentPlayer.resources, cost)) {
-      setLastAction({ type: 'error', message: `Not enough resources for ${buildType}!`, timestamp: Date.now() });
+  const tryBuildOnEdge = (edgeId) => {
+    const cost = BUILDING_COSTS.road;
+  
+    setBoard((b) => {
+      const edge = b.edges[edgeId];
+      if (!edge) return b;
+  
+      const node1 = b.nodes[edge.n1];
+      const node2 = b.nodes[edge.n2];
+      const currentPlayer = players[current];
+  
+      // Road already exists
+      if (edge.ownerId != null) {
+        setLastAction({ type: 'error', message: 'Road already exists here!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
+  
+      // Check connection to player's building or existing road
+      const playerConnected =
+        (node1.building?.ownerId === current || node2.building?.ownerId === current) ||
+        b.edges.some(e => e.ownerId === current &&
+          (e.n1 === edge.n1 || e.n1 === edge.n2 || e.n2 === edge.n1 || e.n2 === edge.n2)
+        );
+  
+      if (!playerConnected) {
+        setLastAction({ type: 'error', message: 'Road must connect to your building or existing road!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
+  
+      if (!node1.canBuild && !node2.canBuild) {
+        setLastAction({ type: 'error', message: 'Cannot build road here - no adjacent land!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
+  
+      // Check if player can afford
+      if (!canAfford(currentPlayer.resources, cost)) {
+        setLastAction({ type: 'error', message: 'Not enough resources for road!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
+        return b;
+      }
+  
+      // Deduct resources
+      const updatedPlayer = {
+        ...currentPlayer,
+        resources: deductResources(currentPlayer.resources, cost)
+      };
+  
+      // Build the road
+      const newEdges = b.edges.slice();
+      newEdges[edgeId] = { ...edge, ownerId: current };
+  
+      setPlayers(prevPlayers => {
+        let newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
+        
+        // Update longest road
+        newPlayers = updateLongestRoad(newPlayers, newEdges, b.nodes);
+        
+        // Recalculate VP for all players
+        return newPlayers.map(p => ({
+          ...p,
+          vp: calculateVP(p, { ...b, edges: newEdges, nodes: b.nodes })
+        }));
+      });
+  
+      setLastAction({ type: 'success', message: 'Road built successfully!', timestamp: Date.now() });
       setTimeout(() => setLastAction(null), 2000);
-      return; // Can't afford it
-    }
-
-    let buildSuccessful = false;
-
+  
+      return { ...b, edges: newEdges };
+    });
+  };
+  
+  const tryBuildOnNode = (nodeId, buildType) => {
     setBoard((b) => {
       const node = b.nodes[nodeId];
       if (!node) return b;
-      
-      // Check if node is buildable (adjacent to land)
+  
+      const currentPlayer = players[current];
+      const cost = BUILDING_COSTS[buildType];
+      const building = node.building;
+  
+      // Node must be buildable
       if (!node.canBuild) {
         setLastAction({ type: 'error', message: 'Cannot build here - no adjacent land!', timestamp: Date.now() });
         setTimeout(() => setLastAction(null), 2000);
         return b;
       }
-      
-      const building = node.building;
-      
+  
       if (buildType === "town") {
         if (building) {
           setLastAction({ type: 'error', message: 'Location already occupied!', timestamp: Date.now() });
           setTimeout(() => setLastAction(null), 2000);
-          return b; // occupied
+          return b;
         }
-        const updated = { ...node, building: { ownerId: current, type: "town" } };
+  
+        // Distance rule
+        const neighborNodeIds = b.edges
+          .filter(e => e.n1 === nodeId || e.n2 === nodeId)
+          .flatMap(e => [e.n1, e.n2])
+          .filter(id => id !== nodeId);
+  
+        const neighborOccupied = neighborNodeIds.some(id => b.nodes[id]?.building);
+        if (neighborOccupied) {
+          setLastAction({ type: 'error', message: 'Too close to another town/city!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b;
+        }
+  
+        if (!canAfford(currentPlayer.resources, cost)) {
+          setLastAction({ type: 'error', message: 'Not enough resources for town!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b;
+        }
+  
+        // Deduct resources and build town
+        const updatedPlayer = {
+          ...currentPlayer,
+          resources: deductResources(currentPlayer.resources, cost)
+        };
         const nodes = b.nodes.slice();
-        nodes[nodeId] = updated;
-        buildSuccessful = true;
+        nodes[nodeId] = { ...node, building: { ownerId: current, type: "town" } };
+  
+        setPlayers(prevPlayers => {
+          const newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
+          // Recalculate VP for all players
+          return newPlayers.map(p => ({
+            ...p,
+            vp: calculateVP(p, { ...b, nodes })
+          }));
+        });
+  
+        setLastAction({ type: 'success', message: 'Town built successfully!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
         return { ...b, nodes };
       }
-      
+  
       if (buildType === "city") {
-        if (!building) {
-          setLastAction({ type: 'error', message: 'Need a town first!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b; // need existing town
-        }
-        if (building.ownerId !== current) {
-          setLastAction({ type: 'error', message: 'Not your town!', timestamp: Date.now() });
+        if (!building || building.ownerId !== current) {
+          setLastAction({ type: 'error', message: 'Need your town here first!', timestamp: Date.now() });
           setTimeout(() => setLastAction(null), 2000);
           return b;
         }
@@ -1016,93 +1313,42 @@ export default function CatanSandbox() {
           setTimeout(() => setLastAction(null), 2000);
           return b;
         }
-        const updated = { ...node, building: { ownerId: current, type: "city" } };
+  
+        if (!canAfford(currentPlayer.resources, cost)) {
+          setLastAction({ type: 'error', message: 'Not enough resources for city!', timestamp: Date.now() });
+          setTimeout(() => setLastAction(null), 2000);
+          return b;
+        }
+  
+        // Deduct resources and upgrade to city
+        const updatedPlayer = {
+          ...currentPlayer,
+          resources: deductResources(currentPlayer.resources, cost)
+        };
         const nodes = b.nodes.slice();
-        nodes[nodeId] = updated;
-        buildSuccessful = true;
+        nodes[nodeId] = { ...node, building: { ownerId: current, type: "city" } };
+  
+        setPlayers(prevPlayers => {
+          const newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
+          // Recalculate VP for all players
+          return newPlayers.map(p => ({
+            ...p,
+            vp: calculateVP(p, { ...b, nodes })
+          }));
+        });
+  
+        setLastAction({ type: 'success', message: 'City upgraded successfully!', timestamp: Date.now() });
+        setTimeout(() => setLastAction(null), 2000);
         return { ...b, nodes };
       }
-      
+  
       return b;
     });
-
-    if (buildSuccessful) {
-      // Deduct resources from player
-      setPlayers(prevPlayers => {
-        const newPlayers = [...prevPlayers];
-        newPlayers[current] = {
-          ...currentPlayer,
-          resources: deductResources(currentPlayer.resources, cost)
-        };
-        return newPlayers;
-      });
-
-      // Show success feedback
-      setLastAction({ 
-        type: 'success', 
-        message: `${buildType} built successfully!`, 
-        timestamp: Date.now() 
-      });
-      setTimeout(() => setLastAction(null), 2000);
-    }
   };
 
-  const tryBuildOnEdge = (edgeId) => {
-    const cost = BUILDING_COSTS.road;
-    const currentPlayer = players[current];
-    
-    // Check if player can afford the road
-    if (!canAfford(currentPlayer.resources, cost)) {
-      setLastAction({ type: 'error', message: 'Not enough resources for road!', timestamp: Date.now() });
-      setTimeout(() => setLastAction(null), 2000);
-      return; // Can't afford it
-    }
-
-    let buildSuccessful = false;
-
-    setBoard((b) => {
-      const edge = b.edges[edgeId];
-      if (!edge) return b;
-      if (edge.ownerId != null) {
-        setLastAction({ type: 'error', message: 'Road already exists here!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b; // occupied
-      }
-      
-      // Check if edge connects to buildable nodes (adjacent to land)
-      const node1 = b.nodes[edge.n1];
-      const node2 = b.nodes[edge.n2];
-      if (!node1.canBuild && !node2.canBuild) {
-        setLastAction({ type: 'error', message: 'Cannot build road here - no adjacent land!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-      const edges = b.edges.slice();
-      edges[edgeId] = { ...edge, ownerId: current };
-      buildSuccessful = true;
-      return { ...b, edges };
-    });
-
-    if (buildSuccessful) {
-      // Deduct resources from player
-      setPlayers(prevPlayers => {
-        const newPlayers = [...prevPlayers];
-        newPlayers[current] = {
-          ...currentPlayer,
-          resources: deductResources(currentPlayer.resources, cost)
-        };
-        return newPlayers;
-      });
-
-      // Show success feedback
-      setLastAction({ 
-        type: 'success', 
-        message: 'Road built successfully!', 
-        timestamp: Date.now() 
-      });
-      setTimeout(() => setLastAction(null), 2000);
-    }
-  };
+  
+  
+  
 
   // Click handlers --------------------------------------------------
   const onClickHex = (hexId) => {
@@ -1168,6 +1414,356 @@ export default function CatanSandbox() {
     setTimeout(() => setLastAction(null), 3000);
     
     console.log(`Trade completed: ${requiredAmount} ${giveResource} → 1 ${receiveResource}`);
+  };
+
+  const buyDevCard = () => {
+    if (devCardDeck.length === 0) {
+      setLastAction({ type: 'error', message: 'No development cards left!', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return;
+    }
+    
+    const currentPlayer = players[current];
+    
+    if (!canAfford(currentPlayer.resources, DEV_CARD_COST)) {
+      setLastAction({ type: 'error', message: 'Not enough resources for dev card!', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return;
+    }
+    
+    // Draw card from deck
+    const [drawnCard, ...remainingDeck] = devCardDeck;
+    setDevCardDeck(remainingDeck);
+    
+    // Update player
+    setPlayers(prevPlayers => {
+      const newPlayers = prevPlayers.map(p => {
+        if (p.id === current) {
+          return {
+            ...p,
+            resources: deductResources(p.resources, DEV_CARD_COST),
+            devCards: [...p.devCards, { type: drawnCard, canPlay: false }],
+            boughtDevCardThisTurn: true
+          };
+        }
+        return p;
+      });
+      
+      // Recalculate VP
+      return newPlayers.map(p => ({
+        ...p,
+        vp: calculateVP(p, board)
+      }));
+    });
+    
+    const cardName = drawnCard === 'victory' ? 'Victory Point' : 
+                     drawnCard === 'knight' ? 'Knight' :
+                     drawnCard === 'road-building' ? 'Road Building' :
+                     drawnCard === 'year-of-plenty' ? 'Year of Plenty' : 'Monopoly';
+    
+    setLastAction({ type: 'success', message: `Bought ${cardName} card!`, timestamp: Date.now() });
+    setTimeout(() => setLastAction(null), 2000);
+  };
+  
+  const playDevCard = (cardIndex) => {
+    const currentPlayer = players[current];
+    const card = currentPlayer.devCards[cardIndex];
+    
+    if (!card.canPlay) {
+      setLastAction({ type: 'error', message: 'Cannot play card bought this turn!', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return;
+    }
+    
+    if (card.type === 'victory') {
+      setLastAction({ type: 'error', message: 'Victory point cards are automatically counted!', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
+      return;
+    }
+    
+    // Handle different card types
+    if (card.type === 'knight') {
+      playKnight(cardIndex);
+    } else if (card.type === 'road-building') {
+      playRoadBuilding(cardIndex);
+    } else if (card.type === 'year-of-plenty') {
+      setShowYearOfPlentyModal(true);
+      setShowDevCardPanel(false);
+    } else if (card.type === 'monopoly') {
+      setShowMonopolyModal(true);
+      setShowDevCardPanel(false);
+    }
+  };
+  
+  const playKnight = (cardIndex) => {
+    setPlayers(prevPlayers => {
+      let newPlayers = prevPlayers.map(p => {
+        if (p.id === current) {
+          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
+          return {
+            ...p,
+            devCards: newDevCards,
+            playedDevCards: [...p.playedDevCards, 'knight'],
+            knightsPlayed: p.knightsPlayed + 1
+          };
+        }
+        return p;
+      });
+      
+      // Update largest army
+      newPlayers = updateLargestArmy(newPlayers);
+      
+      // Recalculate VP
+      return newPlayers.map(p => ({
+        ...p,
+        vp: calculateVP(p, board)
+      }));
+    });
+    
+    setMode('move-robber');
+    setShowDevCardPanel(false);
+    setLastAction({ type: 'success', message: 'Knight played! Move the robber.', timestamp: Date.now() });
+    setTimeout(() => setLastAction(null), 2000);
+  };
+  
+  const playRoadBuilding = (cardIndex) => {
+    setPlayers(prevPlayers => {
+      const newPlayers = prevPlayers.map(p => {
+        if (p.id === current) {
+          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
+          return {
+            ...p,
+            devCards: newDevCards,
+            playedDevCards: [...p.playedDevCards, 'road-building']
+          };
+        }
+        return p;
+      });
+      return newPlayers;
+    });
+    
+    setShowDevCardPanel(false);
+    setLastAction({ type: 'success', message: 'Road Building! Build 2 free roads.', timestamp: Date.now() });
+    setTimeout(() => setLastAction(null), 3000);
+  };
+  
+  const playYearOfPlenty = (resource1, resource2) => {
+    setPlayers(prevPlayers => {
+      const newPlayers = prevPlayers.map(p => {
+        if (p.id === current) {
+          const cardIndex = p.devCards.findIndex(c => c.type === 'year-of-plenty' && c.canPlay);
+          if (cardIndex === -1) return p;
+          
+          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
+          const newResources = { ...p.resources };
+          newResources[resource1] = (newResources[resource1] || 0) + 1;
+          newResources[resource2] = (newResources[resource2] || 0) + 1;
+          
+          return {
+            ...p,
+            devCards: newDevCards,
+            playedDevCards: [...p.playedDevCards, 'year-of-plenty'],
+            resources: newResources
+          };
+        }
+        return p;
+      });
+      return newPlayers;
+    });
+    
+    setShowYearOfPlentyModal(false);
+    setLastAction({ type: 'success', message: 'Year of Plenty played!', timestamp: Date.now() });
+    setTimeout(() => setLastAction(null), 2000);
+  };
+  
+  const playMonopoly = (resource) => {
+    setPlayers(prevPlayers => {
+      let totalStolen = 0;
+      const newPlayers = prevPlayers.map(p => {
+        if (p.id === current) {
+          const cardIndex = p.devCards.findIndex(c => c.type === 'monopoly' && c.canPlay);
+          if (cardIndex === -1) return p;
+          
+          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
+          const newResources = { ...p.resources };
+          newResources[resource] = (newResources[resource] || 0) + totalStolen;
+          
+          return {
+            ...p,
+            devCards: newDevCards,
+            playedDevCards: [...p.playedDevCards, 'monopoly'],
+            resources: newResources
+          };
+        } else {
+          // Steal from other players
+          const amount = p.resources[resource] || 0;
+          totalStolen += amount;
+          const newResources = { ...p.resources };
+          newResources[resource] = 0;
+          return { ...p, resources: newResources };
+        }
+      });
+      return newPlayers;
+    });
+    
+    setShowMonopolyModal(false);
+    setLastAction({ type: 'success', message: `Monopoly! Collected ${totalStolen} ${resource}.`, timestamp: Date.now() });
+    setTimeout(() => setLastAction(null), 2000);
+  };
+
+  // Dev Card Panel Component
+  const DevCardPanel = () => {
+    const currentPlayer = players[current];
+    if (!currentPlayer) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowDevCardPanel(false)}>
+        <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full mx-4 border border-slate-600" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white">Your Development Cards</h2>
+            <button
+              onClick={() => setShowDevCardPanel(false)}
+              className="px-3 py-1 rounded-lg border text-white hover:bg-white/10"
+            >
+              ✕
+            </button>
+          </div>
+          
+          {currentPlayer.devCards.length === 0 ? (
+            <p className="text-white/70 text-center py-8">No development cards</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {currentPlayer.devCards.map((card, index) => {
+                const cardInfo = {
+                  victory: { name: 'Victory Point', emoji: '⭐', color: 'yellow' },
+                  knight: { name: 'Knight', emoji: '⚔️', color: 'red' },
+                  'road-building': { name: 'Road Building', emoji: '🛣️', color: 'orange' },
+                  'year-of-plenty': { name: 'Year of Plenty', emoji: '🌾', color: 'green' },
+                  monopoly: { name: 'Monopoly', emoji: '💰', color: 'purple' }
+                }[card.type];
+                
+                return (
+                  <div key={index} className={`bg-slate-700 rounded-xl p-4 border-2 ${!card.canPlay ? 'opacity-50' : ''}`}
+                       style={{ borderColor: card.canPlay ? `var(--${cardInfo.color}-500)` : '#475569' }}>
+                    <div className="text-4xl text-center mb-2">{cardInfo.emoji}</div>
+                    <div className="text-white font-semibold text-center text-sm mb-2">{cardInfo.name}</div>
+                    {card.type !== 'victory' && (
+                      <button
+                        disabled={!card.canPlay}
+                        onClick={() => playDevCard(index)}
+                        className={`w-full px-3 py-1 rounded-lg text-sm font-semibold ${
+                          card.canPlay 
+                            ? 'bg-blue-600 text-white hover:bg-blue-500' 
+                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {card.canPlay ? 'Play' : 'Next Turn'}
+                      </button>
+                    )}
+                    {card.type === 'victory' && (
+                      <div className="text-center text-xs text-white/70">Auto-counted</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          <div className="mt-4 pt-4 border-t border-white/20">
+            <div className="text-white/70 text-sm">
+              <div>Knights Played: {currentPlayer.knightsPlayed}</div>
+              <div>Cards Remaining in Deck: {devCardDeck.length}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Monopoly Modal
+  const MonopolyModal = () => {
+    const resources = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-slate-600">
+          <h2 className="text-2xl font-bold text-white mb-4">Choose Resource to Monopolize</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {resources.map(resource => (
+              <button
+                key={resource}
+                onClick={() => playMonopoly(resource)}
+                className="px-4 py-3 rounded-xl border-2 text-white font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+                style={{ borderColor: resourceColor(resource) }}
+              >
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: resourceColor(resource) }}></span>
+                <span className="capitalize">{resource}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Year of Plenty Modal
+  const YearOfPlentyModal = () => {
+    const [resource1, setResource1] = useState(null);
+    const [resource2, setResource2] = useState(null);
+    const resources = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-slate-600">
+          <h2 className="text-2xl font-bold text-white mb-4">Choose 2 Resources</h2>
+          <div className="mb-4">
+            <div className="text-white/70 text-sm mb-2">First Resource:</div>
+            <div className="grid grid-cols-3 gap-2">
+              {resources.map(resource => (
+                <button
+                  key={resource}
+                  onClick={() => setResource1(resource)}
+                  className={`px-3 py-2 rounded-lg border-2 text-white text-sm font-semibold transition-all ${
+                    resource1 === resource ? 'ring-2 ring-white' : ''
+                  }`}
+                  style={{ borderColor: resourceColor(resource) }}
+                >
+                  <span className="capitalize">{resource}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mb-4">
+            <div className="text-white/70 text-sm mb-2">Second Resource:</div>
+            <div className="grid grid-cols-3 gap-2">
+              {resources.map(resource => (
+                <button
+                  key={resource}
+                  onClick={() => setResource2(resource)}
+                  className={`px-3 py-2 rounded-lg border-2 text-white text-sm font-semibold transition-all ${
+                    resource2 === resource ? 'ring-2 ring-white' : ''
+                  }`}
+                  style={{ borderColor: resourceColor(resource) }}
+                >
+                  <span className="capitalize">{resource}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            disabled={!resource1 || !resource2}
+            onClick={() => playYearOfPlenty(resource1, resource2)}
+            className={`w-full px-4 py-2 rounded-lg font-semibold ${
+              resource1 && resource2
+                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // Action panel for selected element -------------------------------
@@ -1336,7 +1932,7 @@ export default function CatanSandbox() {
             <div className="flex-1 rounded-2xl p-4 border space-y-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
               {/* Toolbar Section */}
               <div className="flex items-start justify-between gap-4">
-                <Toolbar
+              <Toolbar
                   mode={mode}
                   setMode={setMode}
                   onNewBoard={newGame}
@@ -1344,10 +1940,37 @@ export default function CatanSandbox() {
                   onEndTurn={endTurn}
                   onReset={newGame}
                   canMoveRobber={true}
+                  onBuyDevCard={buyDevCard}
+                  onShowDevCards={() => setShowDevCardPanel(true)}
                 />
                 {mode !== "trade" && (
                   <DicePanel lastRoll={lastRoll} onRoll={onRollDice} />
-                )}
+                )}{(() => {
+                  const winner = checkWinner(players);
+                  if (winner) {
+                    return (
+                      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-3xl p-8 shadow-2xl max-w-md text-center">
+                          <div className="text-6xl mb-4">🏆</div>
+                          <h2 className="text-4xl font-bold text-white mb-2">Winner!</h2>
+                          <p className="text-2xl text-white mb-6">
+                            <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> wins with {winner.vp} VP!
+                          </p>
+                          <button
+                            onClick={newGame}
+                            className="px-6 py-3 bg-white text-orange-600 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all"
+                          >
+                            New Game
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                {showDevCardPanel && <DevCardPanel />}
+                {showMonopolyModal && <MonopolyModal />}
+                {showYearOfPlentyModal && <YearOfPlentyModal />}
               </div>
 
               {/* Trade Panel (when active) */}
