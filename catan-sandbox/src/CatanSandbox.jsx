@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { generateBoard } from "../shared/board";
 
 // Catan Sandbox — React (Vanilla JS)
@@ -30,28 +31,7 @@ const RESOURCES = [
 const DEFAULT_COLORS = ["#1976d2", "#e53935", "#8e24aa", "#ef6c00"]; // blue, red, purple, orange
 
 // Building costs (standard Catan rules)
-const BUILDING_COSTS = {
-  road: { wood: 1, brick: 1 },
-  town: { wood: 1, brick: 1, wheat: 1, sheep: 1 },
-  city: { wheat: 2, ore: 3 }, // upgrade cost from town
-};
-
-// Development card deck (25 cards total)
-const DEV_CARD_DECK = [
-  // Victory Point cards (5)
-  "victory", "victory", "victory", "victory", "victory",
-  // Knight cards (14)
-  "knight", "knight", "knight", "knight", "knight", "knight", "knight",
-  "knight", "knight", "knight", "knight", "knight", "knight", "knight",
-  // Road Building (2)
-  "road-building", "road-building",
-  // Year of Plenty (2)
-  "year-of-plenty", "year-of-plenty",
-  // Monopoly (2)
-  "monopoly", "monopoly"
-];
-
-const DEV_CARD_COST = { sheep: 1, wheat: 1, ore: 1 };
+// Note: Building costs, dev cards, and game constants moved to server-side (CatanGame.js)
 
 function resourceColor(key) {
   return RESOURCES.find((r) => r.key === key)?.color || "#ccc";
@@ -61,63 +41,11 @@ function prettyResource(key) {
   return RESOURCES.find((r) => r.key === key)?.label || key;
 }
 
-function rollDice() {
-  const d1 = 1 + Math.floor(Math.random() * 6);
-  const d2 = 1 + Math.floor(Math.random() * 6);
-  return { total: d1 + d2, d1, d2 };
-}
+// Note: Dice rolling moved to server-side (CatanGame.js)
 
-// Helper functions for resource management
-function canAfford(playerResources, cost) {
-  return Object.entries(cost).every(([resource, amount]) => 
-    (playerResources[resource] || 0) >= amount
-  );
-}
+// Note: Resource management functions moved to server-side (CatanGame.js)
 
-function deductResources(playerResources, cost) {
-  const newResources = { ...playerResources };
-  Object.entries(cost).forEach(([resource, amount]) => {
-    newResources[resource] = (newResources[resource] || 0) - amount;
-  });
-  return newResources;
-}
-
-function addResources(playerResources, gains) {
-  const newResources = { ...playerResources };
-  Object.entries(gains).forEach(([resource, amount]) => {
-    newResources[resource] = (newResources[resource] || 0) + amount;
-  });
-  return newResources;
-}
-
-// Helper function to get available trading ratios for a player
-function getPlayerTradingRatios(playerId, nodes) {
-  const ratios = { default: 4 }; // Default 4:1 trading
-  
-  // Check all nodes where player has buildings
-  nodes.forEach(node => {
-    if (node.building && node.building.ownerId === playerId) {
-      // Check harbors at this node
-      node.harbors.forEach(harbor => {
-        if (harbor.resource === "any") {
-          // 3:1 harbor for any resource
-          ratios.default = Math.min(ratios.default, harbor.ratio);
-        } else {
-          // 2:1 harbor for specific resource
-          ratios[harbor.resource] = Math.min(ratios[harbor.resource] || 4, harbor.ratio);
-        }
-      });
-    }
-  });
-  
-  return ratios;
-}
-
-// Helper function to get the best trading ratio for a resource
-function getBestTradingRatio(playerId, resource, nodes) {
-  const ratios = getPlayerTradingRatios(playerId, nodes);
-  return ratios[resource] || ratios.default;
-}
+// Note: Harbor trading logic moved to server-side (CatanGame.js)
 
 function PlayerPanel({ player, isActive, onSelect }) {
   const keys = ["wood", "brick", "wheat", "sheep", "ore"];
@@ -185,72 +113,101 @@ function PlayerPanel({ player, isActive, onSelect }) {
     </div>
   );
 }
- 
- 
- 
- 
 
+PlayerPanel.propTypes = {
+  player: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    name: PropTypes.string.isRequired,
+    color: PropTypes.string.isRequired,
+    resources: PropTypes.object.isRequired,
+    vp: PropTypes.number.isRequired,
+    longestRoad: PropTypes.bool,
+    largestArmy: PropTypes.bool,
+  }).isRequired,
+  isActive: PropTypes.bool.isRequired,
+  onSelect: PropTypes.func.isRequired,
+};
 
 function Toolbar({ mode, setMode, onNewBoard, onRandomize, onEndTurn, onReset, canMoveRobber, onBuyDevCard, onShowDevCards }) {
-  const Button = ({ label, active, onClick, variant = "default" }) => {
-    const baseClass = "px-3 py-1 rounded-xl border text-sm font-medium transition-all duration-200 transform";
-    let colorClass = "";
-    
-    if (variant === "primary") {
-      colorClass = active 
-        ? "bg-blue-600 text-white border-blue-500 shadow-lg" 
-        : "bg-blue-500 text-white border-blue-400 hover:bg-blue-400 hover:shadow-md active:scale-95";
-    } else if (variant === "secondary") {
-      colorClass = active 
-        ? "bg-green-600 text-white border-green-500 shadow-lg" 
-        : "bg-green-500 text-white border-green-400 hover:bg-green-400 hover:shadow-md active:scale-95";
-    } else if (variant === "danger") {
-      colorClass = active 
-        ? "bg-red-600 text-white border-red-500 shadow-lg" 
-        : "bg-red-500 text-white border-red-400 hover:bg-red-400 hover:shadow-md active:scale-95";
-    } else {
-      colorClass = active 
-        ? "bg-white text-black border-gray-300 shadow-lg" 
-        : "bg-transparent text-white border-white/20 hover:bg-white/10 hover:border-white/30 active:scale-95";
-    }
-    
-    return (
-      <button
-        onClick={onClick}
-        className={`${baseClass} ${colorClass}`}
-      >
-        {label}
-      </button>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-3">
       {/* Main Actions Row */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button label="Select" active={mode === "select"} onClick={() => setMode("select")} />
+        <ToolbarButton label="Select" active={mode === "select"} onClick={() => setMode("select")} />
         <span className="mx-1 opacity-40">|</span>
-        <Button label="Build Road" active={mode === "build-road"} onClick={() => setMode("build-road")} variant="primary" />
-        <Button label="Build Town" active={mode === "build-town"} onClick={() => setMode("build-town")} variant="primary" />
-        <Button label="Build City" active={mode === "build-city"} onClick={() => setMode("build-city")} variant="primary" />
+        <ToolbarButton label="Build Road" active={mode === "build-road"} onClick={() => setMode("build-road")} variant="primary" />
+        <ToolbarButton label="Build Town" active={mode === "build-town"} onClick={() => setMode("build-town")} variant="primary" />
+        <ToolbarButton label="Build City" active={mode === "build-city"} onClick={() => setMode("build-city")} variant="primary" />
         <span className="mx-1 opacity-40">|</span>
-        <Button label="Trade" active={mode === "trade"} onClick={() => setMode("trade")} variant="secondary" />
-        <Button label={canMoveRobber ? "Move Robber" : "Robber"} active={mode === "move-robber"} onClick={() => setMode("move-robber")} variant="danger" />
-        <Button label="Buy Dev Card" active={false} onClick={onBuyDevCard} variant="secondary" />
-        <Button label="View Cards" active={false} onClick={onShowDevCards} variant="secondary" />
+        <ToolbarButton label="Trade" active={mode === "trade"} onClick={() => setMode("trade")} variant="secondary" />
+        <ToolbarButton label={canMoveRobber ? "Move Robber" : "Robber"} active={mode === "move-robber"} onClick={() => setMode("move-robber")} variant="danger" />
+        <ToolbarButton label="Buy Dev Card" active={false} onClick={onBuyDevCard} variant="secondary" />
+        <ToolbarButton label="View Cards" active={false} onClick={onShowDevCards} variant="secondary" />
       </div>
       
       {/* Game Controls Row */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button label="End Turn" onClick={onEndTurn} variant="secondary" />
+        <ToolbarButton label="End Turn" onClick={onEndTurn} variant="secondary" />
         <span className="mx-1 opacity-40">|</span>
-        <Button label="New Game" onClick={onNewBoard} />
-        <Button label="Reroll Setup" onClick={onRandomize} />
-        <Button label="Reset All" onClick={onReset} />
+        <ToolbarButton label="New Game" onClick={onNewBoard} />
+        <ToolbarButton label="Reroll Setup" onClick={onRandomize} />
+        <ToolbarButton label="Reset All" onClick={onReset} />
       </div>
     </div>
   );
 }
+
+Toolbar.propTypes = {
+  mode: PropTypes.string.isRequired,
+  setMode: PropTypes.func.isRequired,
+  onNewBoard: PropTypes.func.isRequired,
+  onRandomize: PropTypes.func.isRequired,
+  onEndTurn: PropTypes.func.isRequired,
+  onReset: PropTypes.func.isRequired,
+  canMoveRobber: PropTypes.bool.isRequired,
+  onBuyDevCard: PropTypes.func.isRequired,
+  onShowDevCards: PropTypes.func.isRequired,
+};
+
+// Extract Button component outside to fix ESLint warning
+const ToolbarButton = ({ label, active, onClick, variant = "default" }) => {
+  const baseClass = "px-3 py-1 rounded-xl border text-sm font-medium transition-all duration-200 transform";
+  let colorClass = "";
+  
+  if (variant === "primary") {
+    colorClass = active 
+      ? "bg-blue-600 text-white border-blue-500 shadow-lg" 
+      : "bg-blue-500 text-white border-blue-400 hover:bg-blue-400 hover:shadow-md active:scale-95";
+  } else if (variant === "secondary") {
+    colorClass = active 
+      ? "bg-green-600 text-white border-green-500 shadow-lg"
+      : "bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600 hover:shadow-md active:scale-95";
+  } else if (variant === "danger") {
+    colorClass = active 
+      ? "bg-red-600 text-white border-red-500 shadow-lg"
+      : "bg-red-500 text-white border-red-400 hover:bg-red-400 hover:shadow-md active:scale-95";
+  } else {
+    colorClass = active 
+      ? "bg-white text-black border-gray-300 shadow-lg"
+      : "border-gray-600 text-gray-300 hover:bg-gray-700 hover:shadow-md active:scale-95";
+  }
+  
+  return (
+    <button
+      onClick={onClick}
+      className={`${baseClass} ${colorClass}`}
+    >
+      {label}
+    </button>
+  );
+};
+
+ToolbarButton.propTypes = {
+  label: PropTypes.string.isRequired,
+  active: PropTypes.bool,
+  onClick: PropTypes.func.isRequired,
+  variant: PropTypes.string,
+};
 
 function DicePanel({ lastRoll, onRoll }) {
   return (
@@ -274,8 +231,17 @@ function DicePanel({ lastRoll, onRoll }) {
   );
 }
 
+DicePanel.propTypes = {
+  lastRoll: PropTypes.shape({
+    d1: PropTypes.number.isRequired,
+    d2: PropTypes.number.isRequired,
+    total: PropTypes.number.isRequired,
+  }),
+  onRoll: PropTypes.func.isRequired,
+};
+
 function ProductionDisplay({ productionData }) {
-  if (!productionData || !productionData.players.length) {
+  if (!productionData?.players?.length) {
     return null;
   }
 
@@ -315,6 +281,19 @@ function ProductionDisplay({ productionData }) {
     </div>
   );
 }
+
+ProductionDisplay.propTypes = {
+  productionData: PropTypes.shape({
+    rollTotal: PropTypes.number.isRequired,
+    players: PropTypes.arrayOf(
+      PropTypes.shape({
+        playerId: PropTypes.number.isRequired,
+        playerColor: PropTypes.string.isRequired,
+        resources: PropTypes.object.isRequired,
+      })
+    ).isRequired,
+  }),
+};
 
 function TradePanel({ currentPlayer, onTrade, onClose, nodes }) {
   const [giveAmounts, setGiveAmounts] = useState({ wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 });
@@ -509,6 +488,16 @@ function TradePanel({ currentPlayer, onTrade, onClose, nodes }) {
   );
 }
 
+TradePanel.propTypes = {
+  currentPlayer: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    resources: PropTypes.object.isRequired,
+  }).isRequired,
+  onTrade: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+  nodes: PropTypes.array.isRequired,
+};
+
 function useBoard() {
   const [board, setBoard] = useState(() => generateBoard());
   const rerandomize = () => setBoard(generateBoard());
@@ -544,136 +533,11 @@ function hexPolygonPath(center, size) {
 }
 
 // FUNCTION FOR VICTORY POINTS 
-function calculateVP(player, board) {
-  let vp = 0;
+// Note: VP calculation moved to server-side (CatanGame.js)
 
-  // Towns and cities
-  board.nodes.forEach(node => {
-    if (node.building?.ownerId === player.id) {
-      vp += node.building.type === 'town' ? 1 : 2;
-    }
-  });
+// Note: Game logic functions moved to server-side (CatanGame.js)
 
-  // Longest road & largest army (future features)
-  if (player.longestRoad) vp += 2;
-  if (player.largestArmy) vp += 2;
-
-  // Victory dev cards (future features)
-  if (player.devCards) {
-    vp += player.devCards.filter(c => c.type === 'victory').length;
-  }
-
-  return vp;
-}
-
-function checkWinner(players) {
-  return players.find(p => p.vp >= 10);
-}
-
-function calculateLongestRoad(playerId, edges, nodes) {
-  // Find all roads owned by this player
-  const playerEdges = edges.filter(e => e.ownerId === playerId);
-  if (playerEdges.length < 5) return 0; // Need at least 5 roads for longest road
-  
-  // Build adjacency map for player's roads
-  const roadGraph = new Map();
-  playerEdges.forEach(edge => {
-    if (!roadGraph.has(edge.n1)) roadGraph.set(edge.n1, []);
-    if (!roadGraph.has(edge.n2)) roadGraph.set(edge.n2, []);
-    roadGraph.get(edge.n1).push(edge.n2);
-    roadGraph.get(edge.n2).push(edge.n1);
-  });
-  
-  // DFS to find longest path
-  let maxLength = 0;
-  
-  function dfs(node, visited, length) {
-    maxLength = Math.max(maxLength, length);
-    const neighbors = roadGraph.get(node) || [];
-    
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        // Check if there's an opponent's settlement/city blocking the path
-        const neighborNode = nodes[neighbor];
-        if (neighborNode.building && neighborNode.building.ownerId !== playerId) {
-          continue; // Path is blocked
-        }
-        
-        visited.add(neighbor);
-        dfs(neighbor, visited, length + 1);
-        visited.delete(neighbor);
-      }
-    }
-  }
-  
-  // Try starting from each node
-  roadGraph.forEach((_, startNode) => {
-    const visited = new Set([startNode]);
-    dfs(startNode, visited, 0);
-  });
-  
-  return maxLength;
-}
-
-function updateLongestRoad(players, edges, nodes) {
-  // Calculate longest road for each player
-  const roadLengths = players.map(player => ({
-    id: player.id,
-    length: calculateLongestRoad(player.id, edges, nodes)
-  }));
-  
-  // Find the maximum length (must be at least 5)
-  const maxLength = Math.max(...roadLengths.map(r => r.length));
-  
-  if (maxLength < 5) {
-    // No one has longest road
-    return players.map(p => ({ ...p, longestRoad: false }));
-  }
-  
-  // Check if there's a tie at max length
-  const playersWithMax = roadLengths.filter(r => r.length === maxLength);
-  
-  if (playersWithMax.length > 1) {
-    // Tie - keep whoever had it before, or no one if no one had it
-    const currentHolder = players.find(p => p.longestRoad);
-    if (currentHolder && playersWithMax.some(r => r.id === currentHolder.id)) {
-      // Current holder still tied, they keep it
-      return players.map(p => ({ ...p, longestRoad: p.id === currentHolder.id }));
-    } else {
-      // No clear holder
-      return players.map(p => ({ ...p, longestRoad: false }));
-    }
-  }
-  
-  // One clear winner
-  const winnerId = playersWithMax[0].id;
-  return players.map(p => ({ ...p, longestRoad: p.id === winnerId }));
-}
-function updateLargestArmy(players) {
-  // Find max knights played (must be at least 3)
-  const maxKnights = Math.max(...players.map(p => p.knightsPlayed));
-  
-  if (maxKnights < 3) {
-    return players.map(p => ({ ...p, largestArmy: false }));
-  }
-  
-  // Check for ties
-  const playersWithMax = players.filter(p => p.knightsPlayed === maxKnights);
-  
-  if (playersWithMax.length > 1) {
-    // Tie - keep whoever had it before
-    const currentHolder = players.find(p => p.largestArmy);
-    if (currentHolder && playersWithMax.some(p => p.id === currentHolder.id)) {
-      return players.map(p => ({ ...p, largestArmy: p.id === currentHolder.id }));
-    } else {
-      return players.map(p => ({ ...p, largestArmy: false }));
-    }
-  }
-  
-  // One clear winner
-  const winnerId = playersWithMax[0].id;
-  return players.map(p => ({ ...p, largestArmy: p.id === winnerId }));
-}
+// Note: Longest road and largest army calculations moved to server-side (CatanGame.js)
 
 
 export default function CatanSandbox() {
@@ -718,6 +582,64 @@ export default function CatanSandbox() {
 
     createGame();
   }, [setBoard]); // empty-ish deps: runs once on mount
+
+  const API_BASE = "http://localhost:4000"; // or leave off host if you use a Vite proxy
+  // Helper to send actions to server and update state accordingly
+
+  // Handles errors and updates lastAction for feedback
+  const sendAction = async (type, payload = {}) => {
+    if (!gameId) {
+      console.warn("No gameId yet, ignoring action", type);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, payload }),
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        console.error("Action error:", data.error);
+        setLastAction({
+          type: "error",
+          message: data.error,
+          timestamp: Date.now(),
+        });
+        setTimeout(() => setLastAction(null), 3000);
+        return;
+      }
+
+      const state = data.state;
+
+      // Hydrate client state from server
+      setBoard(state.board);
+      setPlayers(state.players);
+      setCurrent(state.current);
+      setLastRoll(state.lastRoll || null);
+      setLastProduction(state.lastProduction || null);
+
+      const winner = state.winner;
+      if (winner) {
+        setLastAction({
+          type: "success",
+          message: `${winner.name} wins with ${winner.vp} VP!`,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error("sendAction fetch failed:", err);
+      setLastAction({
+        type: "error",
+        message: "Network error talking to Catan API",
+        timestamp: Date.now(),
+      });
+      setTimeout(() => setLastAction(null), 3000);
+    }
+  };
 
   // Helper function to place initial settlements and roads
   const placeInitialBuildings = (newBoard) => {
@@ -846,62 +768,8 @@ export default function CatanSandbox() {
     setLastProduction(null);
   };
 
-  const awardProduction = (rollTotal) => {
-    if (!players.length) return;
-
-    const tiles = board.tiles;
-    const nodes = board.nodes;
-
-    const newPlayers = players.map((p) => ({ ...p, resources: { ...p.resources } }));
-    const productionTracking = {}; // Track production by player ID
-
-    tiles.forEach((tile, hexIdx) => {
-      if (tile.hasRobber) return; // blocked
-      if (tile.number !== rollTotal) return;
-      const resource = tile.resource;
-      if (!resource || resource === "desert") return;
-
-      // Nodes touching this hex get 1 (town) or 2 (city) of the resource
-      // Find nodes by checking nodes whose adjHexes includes hexIdx
-      nodes.forEach((n) => {
-        if (n.building && n.adjHexes.includes(hexIdx)) {
-          const amt = n.building.type === "city" ? 2 : 1;
-          const owner = n.building.ownerId;
-          
-          // Update player resources
-          newPlayers[owner].resources[resource] =
-            (newPlayers[owner].resources[resource] || 0) + amt;
-          
-          // Track production for display
-          if (!productionTracking[owner]) {
-            productionTracking[owner] = {};
-          }
-          productionTracking[owner][resource] = 
-            (productionTracking[owner][resource] || 0) + amt;
-        }
-      });
-    });
-
-    setPlayers(newPlayers);
-
-    // Set production tracking for display
-    const productionData = {
-      rollTotal,
-      players: Object.entries(productionTracking).map(([playerId, resources]) => ({
-        playerId: parseInt(playerId),
-        playerName: players[parseInt(playerId)].name,
-        playerColor: players[parseInt(playerId)].color,
-        resources: Object.entries(resources).map(([resource, amount]) => ({
-          resource,
-          amount
-        }))
-      }))
-    };
-    
-    setLastProduction(productionData.players.length > 0 ? productionData : null);
-  };
-
-    const onRollDice = () => {
+  const onRollDice = () => {
+    if (!gameId) return;
     sendAction("rollDice");
   };
 
@@ -915,188 +783,18 @@ export default function CatanSandbox() {
   };
 
   const tryBuildOnEdge = (edgeId) => {
-    const cost = BUILDING_COSTS.road;
-  
-    setBoard((b) => {
-      const edge = b.edges[edgeId];
-      if (!edge) return b;
-  
-      const node1 = b.nodes[edge.n1];
-      const node2 = b.nodes[edge.n2];
-      const currentPlayer = players[current];
-  
-      // Road already exists
-      if (edge.ownerId != null) {
-        setLastAction({ type: 'error', message: 'Road already exists here!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-  
-      // Check connection to player's building or existing road
-      const playerConnected =
-        (node1.building?.ownerId === current || node2.building?.ownerId === current) ||
-        b.edges.some(e => e.ownerId === current &&
-          (e.n1 === edge.n1 || e.n1 === edge.n2 || e.n2 === edge.n1 || e.n2 === edge.n2)
-        );
-  
-      if (!playerConnected) {
-        setLastAction({ type: 'error', message: 'Road must connect to your building or existing road!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-  
-      if (!node1.canBuild && !node2.canBuild) {
-        setLastAction({ type: 'error', message: 'Cannot build road here - no adjacent land!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-  
-      // Check if player can afford
-      if (!canAfford(currentPlayer.resources, cost)) {
-        setLastAction({ type: 'error', message: 'Not enough resources for road!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-  
-      // Deduct resources
-      const updatedPlayer = {
-        ...currentPlayer,
-        resources: deductResources(currentPlayer.resources, cost)
-      };
-  
-      // Build the road
-      const newEdges = b.edges.slice();
-      newEdges[edgeId] = { ...edge, ownerId: current };
-  
-      setPlayers(prevPlayers => {
-        let newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
-        
-        // Update longest road
-        newPlayers = updateLongestRoad(newPlayers, newEdges, b.nodes);
-        
-        // Recalculate VP for all players
-        return newPlayers.map(p => ({
-          ...p,
-          vp: calculateVP(p, { ...b, edges: newEdges, nodes: b.nodes })
-        }));
-      });
-  
-      setLastAction({ type: 'success', message: 'Road built successfully!', timestamp: Date.now() });
-      setTimeout(() => setLastAction(null), 2000);
-  
-      return { ...b, edges: newEdges };
-    });
+    sendAction("buildRoad", { edgeId, playerId: current });
+    setSelection(null); // Close action panel
   };
   
   const tryBuildOnNode = (nodeId, buildType) => {
-    setBoard((b) => {
-      const node = b.nodes[nodeId];
-      if (!node) return b;
-  
-      const currentPlayer = players[current];
-      const cost = BUILDING_COSTS[buildType];
-      const building = node.building;
-  
-      // Node must be buildable
-      if (!node.canBuild) {
-        setLastAction({ type: 'error', message: 'Cannot build here - no adjacent land!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return b;
-      }
-  
-      if (buildType === "town") {
-        if (building) {
-          setLastAction({ type: 'error', message: 'Location already occupied!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-  
-        // Distance rule
-        const neighborNodeIds = b.edges
-          .filter(e => e.n1 === nodeId || e.n2 === nodeId)
-          .flatMap(e => [e.n1, e.n2])
-          .filter(id => id !== nodeId);
-  
-        const neighborOccupied = neighborNodeIds.some(id => b.nodes[id]?.building);
-        if (neighborOccupied) {
-          setLastAction({ type: 'error', message: 'Too close to another town/city!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-  
-        if (!canAfford(currentPlayer.resources, cost)) {
-          setLastAction({ type: 'error', message: 'Not enough resources for town!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-  
-        // Deduct resources and build town
-        const updatedPlayer = {
-          ...currentPlayer,
-          resources: deductResources(currentPlayer.resources, cost)
-        };
-        const nodes = b.nodes.slice();
-        nodes[nodeId] = { ...node, building: { ownerId: current, type: "town" } };
-  
-        setPlayers(prevPlayers => {
-          const newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
-          // Recalculate VP for all players
-          return newPlayers.map(p => ({
-            ...p,
-            vp: calculateVP(p, { ...b, nodes })
-          }));
-        });
-  
-        setLastAction({ type: 'success', message: 'Town built successfully!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return { ...b, nodes };
-      }
-  
-      if (buildType === "city") {
-        if (!building || building.ownerId !== current) {
-          setLastAction({ type: 'error', message: 'Need your town here first!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-        if (building.type === "city") {
-          setLastAction({ type: 'error', message: 'Already a city!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-  
-        if (!canAfford(currentPlayer.resources, cost)) {
-          setLastAction({ type: 'error', message: 'Not enough resources for city!', timestamp: Date.now() });
-          setTimeout(() => setLastAction(null), 2000);
-          return b;
-        }
-  
-        // Deduct resources and upgrade to city
-        const updatedPlayer = {
-          ...currentPlayer,
-          resources: deductResources(currentPlayer.resources, cost)
-        };
-        const nodes = b.nodes.slice();
-        nodes[nodeId] = { ...node, building: { ownerId: current, type: "city" } };
-  
-        setPlayers(prevPlayers => {
-          const newPlayers = prevPlayers.map(p => p.id === current ? updatedPlayer : p);
-          // Recalculate VP for all players
-          return newPlayers.map(p => ({
-            ...p,
-            vp: calculateVP(p, { ...b, nodes })
-          }));
-        });
-  
-        setLastAction({ type: 'success', message: 'City upgraded successfully!', timestamp: Date.now() });
-        setTimeout(() => setLastAction(null), 2000);
-        return { ...b, nodes };
-      }
-  
-      return b;
-    });
-  };
-
-  // Click handlers --------------------------------------------------
+    if (buildType === "town") {
+      sendAction("buildTown", { nodeId, playerId: current });
+    } else if (buildType === "city") {
+      sendAction("buildCity", { nodeId, playerId: current });
+    }
+    setSelection(null); // Close action panel
+  };  // Click handlers --------------------------------------------------
     const onClickHex = (hexId) => {
     if (mode === "move-robber") {
       // was moveRobberTo(hexId);
@@ -1130,89 +828,20 @@ export default function CatanSandbox() {
 
   // Trade function with harbor support
   const executeTrade = (giveResource, receiveResource) => {
-    const currentPlayer = players[current];
-    const requiredAmount = getBestTradingRatio(currentPlayer.id, giveResource, board.nodes);
-    
-    // Check if player has enough of the resource to give
-    if ((currentPlayer.resources[giveResource] || 0) < requiredAmount) {
-      setLastAction({ type: 'error', message: `Not enough ${giveResource} to trade! Need ${requiredAmount}, have ${currentPlayer.resources[giveResource] || 0}`, timestamp: Date.now() });
-      setTimeout(() => setLastAction(null), 3000);
-      return; // Can't afford the trade
-    }
-
-    // Execute the trade with visual feedback
-    setPlayers(prevPlayers => {
-      const newPlayers = [...prevPlayers];
-      const newResources = { ...currentPlayer.resources };
-      newResources[giveResource] = (newResources[giveResource] || 0) - requiredAmount;
-      newResources[receiveResource] = (newResources[receiveResource] || 0) + 1;
-      
-      newPlayers[current] = {
-        ...currentPlayer,
-        resources: newResources
-      };
-      return newPlayers;
+    sendAction("harborTrade", { 
+      playerId: current, 
+      giveResource, 
+      receiveResource 
     });
-
-    // Show success feedback
-    setLastAction({ 
-      type: 'success', 
-      message: `Trade completed: ${requiredAmount} ${giveResource} → 1 ${receiveResource}`, 
-      timestamp: Date.now() 
-    });
-    setTimeout(() => setLastAction(null), 3000);
-    
-    console.log(`Trade completed: ${requiredAmount} ${giveResource} → 1 ${receiveResource}`);
   };
+
+
 
   const buyDevCard = () => {
-    if (devCardDeck.length === 0) {
-      setLastAction({ type: 'error', message: 'No development cards left!', timestamp: Date.now() });
-      setTimeout(() => setLastAction(null), 2000);
-      return;
-    }
-    
-    const currentPlayer = players[current];
-    
-    if (!canAfford(currentPlayer.resources, DEV_CARD_COST)) {
-      setLastAction({ type: 'error', message: 'Not enough resources for dev card!', timestamp: Date.now() });
-      setTimeout(() => setLastAction(null), 2000);
-      return;
-    }
-    
-    // Draw card from deck
-    const [drawnCard, ...remainingDeck] = devCardDeck;
-    setDevCardDeck(remainingDeck);
-    
-    // Update player
-    setPlayers(prevPlayers => {
-      const newPlayers = prevPlayers.map(p => {
-        if (p.id === current) {
-          return {
-            ...p,
-            resources: deductResources(p.resources, DEV_CARD_COST),
-            devCards: [...p.devCards, { type: drawnCard, canPlay: false }],
-            boughtDevCardThisTurn: true
-          };
-        }
-        return p;
-      });
-      
-      // Recalculate VP
-      return newPlayers.map(p => ({
-        ...p,
-        vp: calculateVP(p, board)
-      }));
-    });
-    
-    const cardName = drawnCard === 'victory' ? 'Victory Point' : 
-                     drawnCard === 'knight' ? 'Knight' :
-                     drawnCard === 'road-building' ? 'Road Building' :
-                     drawnCard === 'year-of-plenty' ? 'Year of Plenty' : 'Monopoly';
-    
-    setLastAction({ type: 'success', message: `Bought ${cardName} card!`, timestamp: Date.now() });
-    setTimeout(() => setLastAction(null), 2000);
+    sendAction("buyDevCard");
   };
+
+
   
   const playDevCard = (cardIndex) => {
     const currentPlayer = players[current];
@@ -1522,30 +1151,29 @@ export default function CatanSandbox() {
 
     if (type === "node") {
       const node = board.nodes[id];
-      const currentPlayer = players[current];
-      const canTown = !node.building && canAfford(currentPlayer.resources, BUILDING_COSTS.town);
-      const canCity = node.building && node.building.ownerId === current && node.building.type === "town" && canAfford(currentPlayer.resources, BUILDING_COSTS.city);
       
       return (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-2xl border bg-[#0b0f13] text-white shadow-xl p-3 flex items-center gap-2">
             <div className="text-sm opacity-80">Node #{id}</div>
-            <button
-              disabled={!canTown}
-              onClick={() => tryBuildOnNode(id, "town")}
-              className={`px-3 py-1 rounded-xl border text-sm ${canTown ? "bg-white text-black" : "opacity-40"}`}
-              title={!node.building ? `Town: ${Object.entries(BUILDING_COSTS.town).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Node occupied'}
-            >
-              Build Town
-            </button>
-            <button
-              disabled={!canCity}
-              onClick={() => tryBuildOnNode(id, "city")}
-              className={`px-3 py-1 rounded-xl border text-sm ${canCity ? "bg-white text-black" : "opacity-40"}`}
-              title={node.building?.type === "town" ? `City: ${Object.entries(BUILDING_COSTS.city).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Need town first'}
-            >
-              Upgrade to City
-            </button>
+            {!node.building && (
+              <button
+                onClick={() => tryBuildOnNode(id, "town")}
+                className="px-3 py-1 rounded-xl border text-sm bg-white text-black hover:bg-gray-200"
+                title="Build Town"
+              >
+                Build Town
+              </button>
+            )}
+            {node.building && node.building.ownerId === current && node.building.type === "town" && (
+              <button
+                onClick={() => tryBuildOnNode(id, "city")}
+                className="px-3 py-1 rounded-xl border text-sm bg-white text-black hover:bg-gray-200"
+                title="Upgrade to City"
+              >
+                Upgrade to City
+              </button>
+            )}
             <button
               onClick={() => setSelection(null)}
               className="px-3 py-1 rounded-xl border text-sm"
@@ -1560,21 +1188,20 @@ export default function CatanSandbox() {
 
     if (type === "edge") {
       const edge = board.edges[id];
-      const currentPlayer = players[current];
-      const canRoad = edge.ownerId == null && canAfford(currentPlayer.resources, BUILDING_COSTS.road);
       
       return (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-2xl border bg-[#0b0f13] text-white shadow-xl p-3 flex items-center gap-2">
             <div className="text-sm opacity-80">Edge #{id}</div>
-            <button
-              disabled={!canRoad}
-              onClick={() => tryBuildOnEdge(id)}
-              className={`px-3 py-1 rounded-xl border text-sm ${canRoad ? "bg-white text-black" : "opacity-40"}`}
-              title={edge.ownerId == null ? `Road: ${Object.entries(BUILDING_COSTS.road).map(([r,c]) => `${c} ${r}`).join(', ')}` : 'Edge occupied'}
-            >
-              Build Road
-            </button>
+            {edge.ownerId == null && (
+              <button
+                onClick={() => tryBuildOnEdge(id)}
+                className="px-3 py-1 rounded-xl border text-sm bg-white text-black hover:bg-gray-200"
+                title="Build Road"
+              >
+                Build Road
+              </button>
+            )}
             <button
               onClick={() => setSelection(null)}
               className="px-3 py-1 rounded-xl border text-sm"
