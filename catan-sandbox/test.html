@@ -93,6 +93,28 @@
             <button onclick="rollDice()">Roll Dice</button>
             <button onclick="endTurn()">End Turn</button>
         </div>
+        <div style="margin-top: 10px;">
+            <strong>Building Actions:</strong><br>
+            <input type="number" id="nodeId" placeholder="Node ID" style="width: 80px; margin: 2px;">
+            <button onclick="buildTown()">Build Town</button>
+            <button onclick="buildCity()">Build City</button><br>
+            <input type="number" id="edgeId" placeholder="Edge ID" style="width: 80px; margin: 2px;">
+            <button onclick="buildRoad()">Build Road</button><br>
+            <input type="number" id="hexId" placeholder="Hex ID" style="width: 80px; margin: 2px;">
+            <button onclick="moveRobber()">Move Robber</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Quick Tests:</strong><br>
+            <button onclick="findEmptySpots()">🔍 Find Empty Building Spots</button>
+            <button onclick="testBuildingSequence()">🏗️ Test Building Sequence</button>
+            <button onclick="explainCoordinates()">📍 Explain Coordinates</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Visual Mapping:</strong><br>
+            <button onclick="showASCIIBoard()">� ASCII Board View</button>
+            <button onclick="generateBoardMap()">📋 Generate Node Map</button>
+            <button onclick="findNodesByRegion()">🎯 Find Nodes by Region</button>
+        </div>
         <div style="margin-top: 5px; font-size: 12px; color: #666;">
             💡 Create a game first to auto-populate the Game ID, or copy/paste an existing game ID
         </div>
@@ -151,7 +173,7 @@
                         </div>
                     </div>
                     <div class="log-content" id="${entryId}-content">
-                        <pre>${JSON.stringify(message, null, 2)}</pre>
+                        ${createLogContent(message)}
                     </div>
                 </div>
             `;
@@ -161,6 +183,80 @@
             // Auto-scroll to the new entry
             const newEntry = output.lastElementChild;
             newEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function createLogContent(message) {
+            // Special handling for ASCII board display
+            if (message.asciiBoard || message.nodeIdMap) {
+                let html = '';
+                
+                if (message.info) {
+                    html += `<div style="color: #2196F3; font-weight: bold; margin-bottom: 10px;">${message.info}</div>`;
+                }
+                
+                if (message.legend) {
+                    html += '<div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; border-radius: 5px;">';
+                    html += '<strong>Legend:</strong><br>';
+                    Object.entries(message.legend).forEach(([symbol, meaning]) => {
+                        html += `<code style="background: #e0e0e0; padding: 2px 4px; border-radius: 3px;">${symbol}</code> = ${meaning}<br>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (message.asciiBoard) {
+                    html += '<div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.3; overflow-x: auto;">';
+                    html += '<div style="margin-bottom: 10px; font-weight: bold;">📊 Catan Board Layout:</div>';
+                    html += `<pre style="margin: 0; white-space: pre; font-size: 11px;">${message.asciiBoard}</pre>`;
+                    html += '</div>';
+                }
+                
+                if (message.nodeIdMap) {
+                    html += '<div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.3; overflow-x: auto;">';
+                    html += '<div style="margin-bottom: 10px; font-weight: bold;">📍 Node ID Reference:</div>';
+                    html += `<pre style="margin: 0; white-space: pre; font-size: 11px;">${message.nodeIdMap}</pre>`;
+                    html += '</div>';
+                }
+                
+                if (message.edgeIdMap) {
+                    html += '<div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.3; overflow-x: auto;">';
+                    html += '<div style="margin-bottom: 10px; font-weight: bold;">�️ Edge ID Reference:</div>';
+                    html += `<pre style="margin: 0; white-space: pre; font-size: 11px;">${message.edgeIdMap}</pre>`;
+                    html += '</div>';
+                }
+                
+                if (message.hexIdMap) {
+                    html += '<div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.3; overflow-x: auto;">';
+                    html += '<div style="margin-bottom: 10px; font-weight: bold;">🏠 Hex ID Reference:</div>';
+                    html += `<pre style="margin: 0; white-space: pre; font-size: 11px;">${message.hexIdMap}</pre>`;
+                    html += '</div>';
+                }
+                
+                if (message.availableSummary) {
+                    html += '<div style="background: #e8f5e8; padding: 10px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #4caf50;">';
+                    html += '<div style="color: #2e7d32; font-weight: bold; margin-bottom: 5px;">🎯 Available Building Spots:</div>';
+                    html += `<div style="font-size: 13px;">Nodes: <strong>${message.availableSummary.availableNodeCount}</strong> | Edges: <strong>${message.availableSummary.availableEdgeCount}</strong></div>`;
+                    html += `<div style="font-size: 12px; margin-top: 5px; color: #555;">Try these node IDs: ${message.availableSummary.sampleAvailableNodes.join(', ')}</div>`;
+                    html += '</div>';
+                }
+                
+                if (message.tileInfo) {
+                    html += '<div style="background: #fff3e0; padding: 10px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #ff9800;">';
+                    html += '<div style="color: #ef6c00; font-weight: bold; margin-bottom: 5px;">🎲 Resource Tiles:</div>';
+                    html += `<pre style="margin: 5px 0; font-family: monospace; font-size: 12px; color: #333; max-height: 150px; overflow-y: auto;">${message.tileInfo}</pre>`;
+                    html += '</div>';
+                }
+                
+                // Still show raw JSON for debugging, but in a collapsible section
+                html += '<details style="margin-top: 15px;">';
+                html += '<summary style="cursor: pointer; color: #666; font-size: 12px; padding: 5px 0;">🔍 Raw JSON Data (click to expand)</summary>';
+                html += `<pre style="background: #f8f9fa; padding: 10px; margin: 5px 0; font-size: 10px; max-height: 200px; overflow: auto; border: 1px solid #e0e0e0; border-radius: 3px;">${JSON.stringify(message, null, 2)}</pre>`;
+                html += '</details>';
+                
+                return html;
+            }
+            
+            // Default JSON display for non-ASCII content
+            return `<pre>${JSON.stringify(message, null, 2)}</pre>`;
         }
         
         function toggleLog(entryId) {
@@ -233,6 +329,678 @@
             await endTurn();
             
             log({ info: '✅ Quick test workflow completed!' });
+        }
+        
+        async function buildTown() {
+            const gameId = document.getElementById('gameId').value;
+            const nodeId = document.getElementById('nodeId').value;
+            if (!gameId || !nodeId) {
+                log({ error: 'Please enter both Game ID and Node ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        type: 'buildTown', 
+                        payload: { nodeId: parseInt(nodeId), playerId: 0 } 
+                    })
+                });
+                const data = await response.json();
+                log({ action: `buildTown at node ${nodeId}`, status: response.status, data });
+            } catch (error) {
+                log({ error: 'Build town failed', message: error.message });
+            }
+        }
+        
+        async function buildCity() {
+            const gameId = document.getElementById('gameId').value;
+            const nodeId = document.getElementById('nodeId').value;
+            if (!gameId || !nodeId) {
+                log({ error: 'Please enter both Game ID and Node ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        type: 'buildCity', 
+                        payload: { nodeId: parseInt(nodeId), playerId: 0 } 
+                    })
+                });
+                const data = await response.json();
+                log({ action: `buildCity at node ${nodeId}`, status: response.status, data });
+            } catch (error) {
+                log({ error: 'Build city failed', message: error.message });
+            }
+        }
+        
+        async function buildRoad() {
+            const gameId = document.getElementById('gameId').value;
+            const edgeId = document.getElementById('edgeId').value;
+            if (!gameId || !edgeId) {
+                log({ error: 'Please enter both Game ID and Edge ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        type: 'buildRoad', 
+                        payload: { edgeId: parseInt(edgeId), playerId: 0 } 
+                    })
+                });
+                const data = await response.json();
+                log({ action: `buildRoad at edge ${edgeId}`, status: response.status, data });
+            } catch (error) {
+                log({ error: 'Build road failed', message: error.message });
+            }
+        }
+        
+        async function moveRobber() {
+            const gameId = document.getElementById('gameId').value;
+            const hexId = document.getElementById('hexId').value;
+            if (!gameId || !hexId) {
+                log({ error: 'Please enter both Game ID and Hex ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        type: 'moveRobber', 
+                        payload: { hexId: parseInt(hexId) } 
+                    })
+                });
+                const data = await response.json();
+                log({ action: `moveRobber to hex ${hexId}`, status: response.status, data });
+            } catch (error) {
+                log({ error: 'Move robber failed', message: error.message });
+            }
+        }
+        
+        async function findEmptySpots() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    // Find empty nodes (for towns)
+                    const emptyNodes = data.board.nodes
+                        .map((node, index) => ({ ...node, id: index }))
+                        .filter(node => !node.building && node.canBuild)
+                        .slice(0, 10); // Show first 10
+                    
+                    // Find empty edges (for roads)
+                    const emptyEdges = data.board.edges
+                        .filter(edge => edge.ownerId === null)
+                        .slice(0, 10); // Show first 10
+                    
+                    // Count existing buildings
+                    const existingTowns = data.board.nodes.filter(n => n.building?.type === 'town').length;
+                    const existingCities = data.board.nodes.filter(n => n.building?.type === 'city').length;
+                    const existingRoads = data.board.edges.filter(e => e.ownerId !== null).length;
+                    
+                    log({ 
+                        info: 'Building spots analysis',
+                        existing: { towns: existingTowns, cities: existingCities, roads: existingRoads },
+                        emptyNodes: emptyNodes.map(n => `Node ${n.id} at (${Math.round(n.x)}, ${Math.round(n.y)})`),
+                        emptyEdges: emptyEdges.slice(0, 5).map(e => `Edge ${e.id} connects nodes ${e.n1}-${e.n2}`),
+                        suggestion: `Try building a town at node ${emptyNodes[0]?.id || 'N/A'} or road at edge ${emptyEdges[0]?.id || 'N/A'}`
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Find empty spots failed', message: error.message });
+            }
+        }
+        
+        async function testBuildingSequence() {
+            log({ info: '🏗️ Starting building sequence test...' });
+            
+            // First find empty spots
+            await findEmptySpots();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Try building a town at a likely empty spot (around node 20-30 area)
+            document.getElementById('nodeId').value = '25';
+            log({ step: 1, action: 'Attempting to build town at node 25...' });
+            await buildTown();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try building a road at a likely empty spot
+            document.getElementById('edgeId').value = '30';
+            log({ step: 2, action: 'Attempting to build road at edge 30...' });
+            await buildRoad();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            log({ info: '✅ Building sequence test completed!' });
+        }
+        
+        async function explainCoordinates() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    log({
+                        info: '📍 Catan Board Coordinate System Explanation',
+                        boardStructure: {
+                            totalHexes: data.board.tiles.length,
+                            totalNodes: data.board.nodes.length,
+                            totalEdges: data.board.edges.length
+                        },
+                        coordinateSystem: {
+                            nodes: 'Intersection points where you can build towns/cities',
+                            edges: 'Lines connecting nodes where you can build roads', 
+                            hexes: 'Resource tiles where you can place the robber'
+                        },
+                        howToFind: {
+                            nodes: 'Each node has an ID (0 to ~53) and x,y coordinates',
+                            edges: 'Each edge connects two nodes (n1 and n2 properties)',
+                            hexes: 'Each hex has an ID (0 to ~18) and center coordinates'
+                        },
+                        apiUsage: {
+                            buildTown: 'POST /api/games/:id/actions with type="buildTown" and payload.nodeId',
+                            buildRoad: 'POST /api/games/:id/actions with type="buildRoad" and payload.edgeId', 
+                            moveRobber: 'POST /api/games/:id/actions with type="moveRobber" and payload.hexId'
+                        },
+                        tips: [
+                            'Use "Find Empty Building Spots" to see available locations',
+                            'Node IDs are assigned systematically starting from top-left',
+                            'Edge IDs connect adjacent nodes',
+                            'Hex IDs start from center and spiral outward',
+                            'The frontend clicking system maps click coordinates to these IDs'
+                        ]
+                    });
+                    
+                    // Show some sample coordinates
+                    const sampleNodes = data.board.nodes.slice(0, 5).map(node => ({
+                        id: node.id,
+                        coordinates: `(${Math.round(node.x)}, ${Math.round(node.y)})`,
+                        canBuild: node.canBuild,
+                        hasBuilding: !!node.building
+                    }));
+                    
+                    const sampleEdges = data.board.edges.slice(0, 5).map(edge => ({
+                        id: edge.id,
+                        connects: `nodes ${edge.n1} ↔ ${edge.n2}`,
+                        owner: edge.ownerId !== null ? `Player ${edge.ownerId}` : 'Available'
+                    }));
+                    
+                    log({
+                        info: '📊 Sample Coordinates',
+                        sampleNodes: sampleNodes,
+                        sampleEdges: sampleEdges
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Explain coordinates failed', message: error.message });
+            }
+        }
+        
+        async function showASCIIBoard() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    const nodes = data.board.nodes;
+                    const edges = data.board.edges;
+                    const tiles = data.board.tiles;
+                    
+                    // Sort nodes by Y then X to get proper ordering
+                    const sortedNodes = [...nodes].sort((a, b) => {
+                        const yDiff = a.y - b.y;
+                        return Math.abs(yDiff) < 5 ? a.x - b.x : yDiff; // Group by Y within 5px tolerance
+                    });
+                    
+                    // Group nodes into approximate rows based on Y coordinate
+                    const rows = [];
+                    let currentRow = [];
+                    let lastY = sortedNodes[0]?.y || 0;
+                    
+                    sortedNodes.forEach(node => {
+                        if (Math.abs(node.y - lastY) > 25) { // New row if Y differs by more than 25px
+                            if (currentRow.length > 0) {
+                                rows.push([...currentRow]);
+                                currentRow = [];
+                            }
+                            lastY = node.y;
+                        }
+                        currentRow.push(node);
+                    });
+                    if (currentRow.length > 0) rows.push(currentRow);
+                    
+                    // Create ASCII board representation with hex numbers
+                    let asciiBoard = '';
+                    let nodeMap = '';
+                    let hexNumberMap = '';
+                    
+                    rows.forEach((row, rowIndex) => {
+                        // Sort row by X coordinate
+                        row.sort((a, b) => a.x - b.x);
+                        
+                        // Create spacing for hexagonal shape
+                        const indent = '  '.repeat(Math.abs(rows.length / 2 - rowIndex));
+                        
+                        let rowText = indent;
+                        let nodeText = indent;
+                        let hexNumberText = indent;
+                        
+                        row.forEach((node, nodeIndex) => {
+                            // Node representation
+                            let nodeChar = '';
+                            if (node.building) {
+                                nodeChar = node.building.type === 'city' ? 'C' : 'T';
+                            } else if (node.canBuild) {
+                                nodeChar = 'o'; // Available spot
+                            } else {
+                                nodeChar = '~'; // Water
+                            }
+                            
+                            // Node ID for reference
+                            const nodeIdStr = String(node.id).padStart(2, '0');
+                            
+                            rowText += nodeChar;
+                            nodeText += nodeIdStr;
+                            
+                            // Add hex numbers between nodes (find hex that's roughly between these nodes)
+                            if (nodeIndex < row.length - 1) {
+                                const midX = (node.x + row[nodeIndex + 1].x) / 2;
+                                const midY = (node.y + row[nodeIndex + 1].y) / 2;
+                                
+                                // Find the hex closest to this midpoint
+                                let closestHex = null;
+                                let minDistance = Infinity;
+                                
+                                tiles.forEach((tile, hexIndex) => {
+                                    if (tile.resource !== 'water') {
+                                        const distance = Math.sqrt(
+                                            Math.pow(tile.center.x - midX, 2) + 
+                                            Math.pow(tile.center.y - midY, 2)
+                                        );
+                                        if (distance < minDistance) {
+                                            minDistance = distance;
+                                            closestHex = { ...tile, id: hexIndex };
+                                        }
+                                    }
+                                });
+                                
+                                let hexDisplay = '---';
+                                let hexIdDisplay = '   ';
+                                if (closestHex && minDistance < 60) { // Only if reasonably close
+                                    if (closestHex.number) {
+                                        hexDisplay = closestHex.number.toString().padStart(2, ' ') + (closestHex.hasRobber ? 'R' : ' ');
+                                    } else if (closestHex.resource === 'desert') {
+                                        hexDisplay = closestHex.hasRobber ? ' DR' : ' D ';
+                                    }
+                                    hexIdDisplay = 'H' + closestHex.id.toString().padStart(2, '0');
+                                }
+                                
+                                rowText += hexDisplay;
+                                nodeText += '   ';
+                                hexNumberText += hexIdDisplay;
+                            }
+                        });
+                        
+                        asciiBoard += rowText + '\n';
+                        nodeMap += nodeText + '\n';
+                        hexNumberMap += hexNumberText + '\n';
+                        
+                        // Add vertical connections between rows (simplified)
+                        if (rowIndex < rows.length - 1) {
+                            const connectIndent = '  '.repeat(Math.abs(rows.length / 2 - rowIndex - 0.5));
+                            asciiBoard += connectIndent + '/ \\ '.repeat(Math.min(row.length, 4)) + '\n';
+                            nodeMap += '\n';
+                            hexNumberMap += '\n';
+                        }
+                    });
+                    
+                    // Create resource tile representation
+                    let tileInfo = 'Resource Tiles:\n';
+                    tiles.forEach((tile, index) => {
+                        if (tile.resource !== 'water') {
+                            const resourceChar = {
+                                'wood': '🌲', 'brick': '🧱', 'wheat': '🌾', 
+                                'sheep': '🐑', 'ore': '⛰️', 'desert': '🏜️'
+                            }[tile.resource] || '?';
+                            
+                            tileInfo += `${index.toString().padStart(2)}: ${resourceChar} ${tile.resource}`;
+                            if (tile.number) tileInfo += ` (${tile.number})`;
+                            if (tile.hasRobber) tileInfo += ' 🦹‍♂️';
+                            tileInfo += '\n';
+                        }
+                    });
+                    
+                    // Available building summary
+                    const availableNodes = nodes.filter(n => n.canBuild && !n.building);
+                    const availableEdges = edges.filter(e => e.ownerId === null);
+                    
+                    // Create edge ID reference
+                    let edgeMap = 'Edge IDs (roads can be built here):\n';
+                    const availableEdgesList = edges.filter(e => e.ownerId === null).slice(0, 20);
+                    edgeMap += availableEdgesList.map(edge => {
+                        return `Edge ${edge.id.toString().padStart(2)}: connects Node ${edge.n1} ↔ Node ${edge.n2}`;
+                    }).join('\n');
+                    
+                    if (availableEdgesList.length < edges.filter(e => e.ownerId === null).length) {
+                        edgeMap += '\n... (showing first 20 available edges)';
+                    }
+                    
+                    // Create hex ID reference with strategic info
+                    let hexMap = 'Hex IDs for Robber Placement (resource tiles):\n\n';
+                    
+                    // Group tiles by dice probability for strategic robber placement
+                    const tilesByValue = {};
+                    tiles.forEach((tile, index) => {
+                        if (tile.resource !== 'water') {
+                            const number = tile.number || 0;
+                            if (!tilesByValue[number]) tilesByValue[number] = [];
+                            tilesByValue[number].push({...tile, id: index});
+                        }
+                    });
+                    
+                    // Show high-value targets first (6, 8 are most common rolls)
+                    const priorityOrder = [6, 8, 5, 9, 4, 10, 3, 11, 2, 12, 0]; // 0 for desert
+                    
+                    priorityOrder.forEach(number => {
+                        if (tilesByValue[number]) {
+                            if (number === 0) {
+                                hexMap += '--- DESERT (No Production) ---\n';
+                            } else {
+                                const frequency = number === 6 || number === 8 ? '★★★ HIGH' : 
+                                                 number === 5 || number === 9 ? '★★☆ MEDIUM' :
+                                                 number === 4 || number === 10 ? '★☆☆ LOW' : '☆☆☆ RARE';
+                                hexMap += `--- DICE ${number} (${frequency} frequency) ---\n`;
+                            }
+                            
+                            tilesByValue[number].forEach(tile => {
+                                const resourceChar = {
+                                    'wood': '🌲', 'brick': '🧱', 'wheat': '🌾', 
+                                    'sheep': '🐑', 'ore': '⛰️', 'desert': '🏜️'
+                                }[tile.resource] || '?';
+                                
+                                hexMap += `Hex ${tile.id.toString().padStart(2)}: ${resourceChar} ${tile.resource}`;
+                                if (tile.number) hexMap += ` (${tile.number})`;
+                                if (tile.hasRobber) hexMap += ' 👤ROBBER HERE';
+                                hexMap += '\n';
+                            });
+                            hexMap += '\n';
+                        }
+                    });
+                    
+                    // Add robber strategy guide
+                    hexMap += '🎯 ROBBER STRATEGY:\n';
+                    hexMap += '• Target 6s and 8s (most frequent rolls) to block opponents\n';
+                    hexMap += '• Focus on tiles where opponents have multiple buildings\n';
+                    hexMap += '• Consider resource scarcity (block what opponents need most)\n';
+                    hexMap += '• Avoid tiles where you have buildings (blocks your own production)';
+
+                    log({
+                        info: '📊 Complete Catan Board ID Reference',
+                        legend: {
+                            'o': 'Available building spot (nodes)',
+                            'T': 'Town (settlement)',
+                            'C': 'City', 
+                            '~': 'Water/unbuildable',
+                            '---': 'Road connections (edges)'
+                        },
+                        asciiBoard: asciiBoard,
+                        nodeIdMap: 'Node IDs (where you can build towns/cities):\n' + nodeMap,
+                        edgeIdMap: edgeMap,
+                        hexIdMap: hexMap,
+                        availableSummary: {
+                            availableNodeCount: availableNodes.length,
+                            availableEdgeCount: availableEdges.length,
+                            sampleAvailableNodes: availableNodes.slice(0, 12).map(n => n.id),
+                            sampleAvailableEdges: availableEdgesList.slice(0, 8).map(e => e.id)
+                        },
+                        tileInfo: tileInfo
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Show ASCII board failed', message: error.message });
+            }
+        }
+        
+        async function showBoardLayout() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    // Analyze board dimensions to understand layout
+                    const nodes = data.board.nodes;
+                    const minX = Math.min(...nodes.map(n => n.x));
+                    const maxX = Math.max(...nodes.map(n => n.x));
+                    const minY = Math.min(...nodes.map(n => n.y));
+                    const maxY = Math.max(...nodes.map(n => n.y));
+                    
+                    // Group nodes by approximate Y coordinate (rows)
+                    const rows = {};
+                    nodes.forEach(node => {
+                        const roundedY = Math.round(node.y / 20) * 20; // Group by ~20px intervals
+                        if (!rows[roundedY]) rows[roundedY] = [];
+                        rows[roundedY].push(node);
+                    });
+                    
+                    // Sort each row by X coordinate
+                    Object.keys(rows).forEach(y => {
+                        rows[y].sort((a, b) => a.x - b.x);
+                    });
+                    
+                    log({
+                        info: '🗺️ Board Layout Analysis',
+                        dimensions: {
+                            width: Math.round(maxX - minX),
+                            height: Math.round(maxY - minY),
+                            nodeCount: nodes.length
+                        },
+                        coordinates: {
+                            topLeft: `(${Math.round(minX)}, ${Math.round(minY)})`,
+                            bottomRight: `(${Math.round(maxX)}, ${Math.round(maxY)})`
+                        },
+                        rowBreakdown: Object.keys(rows)
+                            .sort((a, b) => Number(a) - Number(b))
+                            .slice(0, 8) // Show first 8 rows
+                            .map(y => ({
+                                yPosition: Number(y),
+                                nodeCount: rows[y].length,
+                                nodeIds: rows[y].slice(0, 10).map(n => n.id), // First 10 nodes in row
+                                sample: rows[y].length > 10 ? '...(more)' : 'complete'
+                            }))
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Show board layout failed', message: error.message });
+            }
+        }
+        
+        async function generateBoardMap() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    const nodes = data.board.nodes;
+                    
+                    // Create a text-based representation
+                    const minX = Math.min(...nodes.map(n => n.x));
+                    const maxX = Math.max(...nodes.map(n => n.x));
+                    const minY = Math.min(...nodes.map(n => n.y));
+                    const maxY = Math.max(...nodes.map(n => n.y));
+                    
+                    const gridWidth = Math.ceil((maxX - minX) / 15); // ~15px per cell
+                    const gridHeight = Math.ceil((maxY - minY) / 15);
+                    
+                    // Create ASCII-style map
+                    const grid = Array(gridHeight).fill().map(() => Array(gridWidth).fill('  '));
+                    
+                    nodes.forEach(node => {
+                        const gridX = Math.min(Math.floor((node.x - minX) / 15), gridWidth - 1);
+                        const gridY = Math.min(Math.floor((node.y - minY) / 15), gridHeight - 1);
+                        
+                        if (node.building) {
+                            grid[gridY][gridX] = node.building.type === 'city' ? '🏛️' : '🏠';
+                        } else if (node.canBuild) {
+                            grid[gridY][gridX] = String(node.id).padStart(2, '0').substring(0, 2);
+                        } else {
+                            grid[gridY][gridX] = '██';
+                        }
+                    });
+                    
+                    const mapString = grid.map(row => row.join('')).join('\n');
+                    
+                    log({
+                        info: '📋 Node ID Map (ASCII representation)',
+                        legend: {
+                            '🏠': 'Existing town',
+                            '🏛️': 'Existing city', 
+                            'XX': 'Available node (ID shown)',
+                            '██': 'Water/unbuildable'
+                        },
+                        map: mapString,
+                        note: 'Numbers show node IDs where you can build. This is approximate positioning.'
+                    });
+                    
+                    // Also show nodes by quadrants
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    
+                    const quadrants = {
+                        'Top-Left': nodes.filter(n => n.x < centerX && n.y < centerY && n.canBuild),
+                        'Top-Right': nodes.filter(n => n.x >= centerX && n.y < centerY && n.canBuild),
+                        'Bottom-Left': nodes.filter(n => n.x < centerX && n.y >= centerY && n.canBuild),
+                        'Bottom-Right': nodes.filter(n => n.x >= centerX && n.y >= centerY && n.canBuild)
+                    };
+                    
+                    const quadrantInfo = {};
+                    Object.keys(quadrants).forEach(quad => {
+                        const availableNodes = quadrants[quad].filter(n => !n.building);
+                        quadrantInfo[quad] = {
+                            totalNodes: quadrants[quad].length,
+                            availableNodes: availableNodes.length,
+                            sampleIds: availableNodes.slice(0, 8).map(n => n.id)
+                        };
+                    });
+                    
+                    log({
+                        info: '🎯 Nodes by Board Quadrants',
+                        quadrants: quadrantInfo,
+                        tip: 'Try building in different quadrants to spread out your settlements'
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Generate board map failed', message: error.message });
+            }
+        }
+        
+        async function findNodesByRegion() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a Game ID first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                
+                if (data.board) {
+                    const nodes = data.board.nodes;
+                    const tiles = data.board.tiles;
+                    
+                    // Analyze which nodes are next to which resources
+                    const resourceNodes = {};
+                    
+                    nodes.forEach(node => {
+                        if (!node.canBuild) return;
+                        
+                        // Find which tiles this node touches
+                        const adjacentResources = node.adjHexes
+                            .map(hexIdx => tiles[hexIdx])
+                            .filter(tile => tile && tile.resource !== 'water' && tile.resource !== 'desert')
+                            .map(tile => tile.resource);
+                        
+                        const resourceKey = adjacentResources.sort().join('-') || 'isolated';
+                        
+                        if (!resourceNodes[resourceKey]) {
+                            resourceNodes[resourceKey] = [];
+                        }
+                        
+                        resourceNodes[resourceKey].push({
+                            id: node.id,
+                            hasBuilding: !!node.building,
+                            buildingType: node.building?.type,
+                            resources: adjacentResources
+                        });
+                    });
+                    
+                    // Sort by resource value (more resources = better)
+                    const sortedRegions = Object.entries(resourceNodes)
+                        .map(([resources, nodeList]) => ({
+                            resources,
+                            resourceCount: resources === 'isolated' ? 0 : resources.split('-').length,
+                            totalNodes: nodeList.length,
+                            availableNodes: nodeList.filter(n => !n.hasBuilding).length,
+                            availableIds: nodeList.filter(n => !n.hasBuilding).slice(0, 5).map(n => n.id),
+                            sampleNode: nodeList[0]
+                        }))
+                        .sort((a, b) => b.resourceCount - a.resourceCount);
+                    
+                    log({
+                        info: '🎯 Node Regions by Resource Access',
+                        bestRegions: sortedRegions.slice(0, 10), // Top 10 regions
+                        strategy: {
+                            '3-resource corners': 'Best spots - touch 3 different resources',
+                            '2-resource edges': 'Good spots - touch 2 resources', 
+                            'single-resource': 'Basic spots - touch 1 resource',
+                            'isolated': 'Poor spots - no resource access'
+                        },
+                        tip: 'Build on high-resource nodes for better production!'
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Find nodes by region failed', message: error.message });
+            }
         }
         
         async function testHealthEndpoint() {
