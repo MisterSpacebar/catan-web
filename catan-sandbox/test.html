@@ -75,6 +75,7 @@
         <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
         <button onclick="createGame()">Create New Game</button>
         <button onclick="listGames()">List Games</button>
+        <button onclick="clearAllGames()" style="background: #f44; color: white;">🗑️ Clear All Games</button>
         <button onclick="quickTest()" style="background: #4CAF50; color: white;">🚀 Quick Test Workflow</button>
     </div>
     
@@ -1070,6 +1071,57 @@
                 }
             } catch (error) {
                 log({ error: 'List games failed', message: error.message, stack: error.stack });
+            }
+        }
+
+        async function clearAllGames() {
+            try {
+                // First check how many games exist
+                const listResponse = await fetch(`${API_BASE}/api/games`);
+                const gameList = await listResponse.json();
+                const gameCount = Array.isArray(gameList) ? gameList.length : 0;
+                
+                if (gameCount === 0) {
+                    log({ 
+                        action: 'Clear All Games',
+                        result: 'No games to clear',
+                        message: 'Server memory is already clean'
+                    });
+                    return;
+                }
+                
+                // Confirm before clearing
+                if (!confirm(`Are you sure you want to clear all ${gameCount} games? This cannot be undone.`)) {
+                    log({ 
+                        action: 'Clear All Games',
+                        result: 'Cancelled',
+                        message: 'User cancelled the operation'
+                    });
+                    return;
+                }
+                
+                // Perform the clear operation
+                const response = await fetch(`${API_BASE}/api/games`, {
+                    method: 'DELETE'
+                });
+                
+                const contentType = response.headers.get('content-type');
+                log({ endpoint: 'DELETE /api/games', status: response.status, contentType });
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    log({ 
+                        action: 'Clear All Games',
+                        result: 'Success',
+                        data,
+                        message: `Successfully cleared ${data.previousCount || gameCount} games from server memory`
+                    });
+                } else {
+                    const text = await response.text();
+                    log({ error: 'Expected JSON but got', textResponse: text.substring(0, 500) });
+                }
+            } catch (error) {
+                log({ error: 'Clear all games failed', message: error.message, stack: error.stack });
             }
         }
         

@@ -16,8 +16,11 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       "POST /api/games": "Create a new game",
+      "GET /api/games": "List all games",
       "GET /api/games/:id": "Get game state",
-      "POST /api/games/:id/actions": "Perform game action"
+      "POST /api/games/:id/actions": "Perform game action",
+      "DELETE /api/games": "Clear all games",
+      "DELETE /api/games/:id": "Delete specific game"
     },
     activeGames: games.size
   });
@@ -45,6 +48,33 @@ app.get("/api/games", (req, res) => {
     };
   });
   res.json(gameList);
+});
+
+// Clear all games
+app.delete("/api/games", (req, res) => {
+  const gameCount = games.size;
+  games.clear();
+  res.json({ 
+    message: `Cleared ${gameCount} games from server memory`,
+    previousCount: gameCount,
+    currentCount: games.size
+  });
+});
+
+// Delete a specific game
+app.delete("/api/games/:id", (req, res) => {
+  const gameId = req.params.id;
+  const existed = games.has(gameId);
+  games.delete(gameId);
+  
+  if (existed) {
+    res.json({ 
+      message: `Game ${gameId} deleted successfully`,
+      gameId: gameId
+    });
+  } else {
+    res.status(404).json({ error: "Game not found" });
+  }
 });
 
 // Get current state
