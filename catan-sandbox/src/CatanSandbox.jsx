@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { generateBoard } from "../shared/board";
+import { generateBoard, TILE_SIZE, hexCorner } from "../shared/board.js";
 
 // Catan Sandbox — React (Vanilla JS)
 // ------------------------------------------------------------
@@ -39,6 +39,33 @@ function resourceColor(key) {
 
 function prettyResource(key) {
   return RESOURCES.find((r) => r.key === key)?.label || key;
+}
+
+// Harbor trading helper functions (client-side for UI)
+function getPlayerTradingRatios(playerId, nodes) {
+  const ratios = { default: 4 }; // 4:1 base
+
+  nodes.forEach((node) => {
+    if (node.building && node.building.ownerId === playerId) {
+      node.harbors.forEach((harbor) => {
+        if (harbor.resource === "any") {
+          ratios.default = Math.min(ratios.default, harbor.ratio);
+        } else {
+          ratios[harbor.resource] = Math.min(
+            ratios[harbor.resource] || 4,
+            harbor.ratio
+          );
+        }
+      });
+    }
+  });
+
+  return ratios;
+}
+
+function getBestTradingRatio(playerId, resource, nodes) {
+  const ratios = getPlayerTradingRatios(playerId, nodes);
+  return ratios[resource] || ratios.default;
 }
 
 // Note: Dice rolling moved to server-side (CatanGame.js)
@@ -556,6 +583,7 @@ export default function CatanSandbox() {
   const [showDevCardPanel, setShowDevCardPanel] = useState(false);
   const [showMonopolyModal, setShowMonopolyModal] = useState(false);
   const [showYearOfPlentyModal, setShowYearOfPlentyModal] = useState(false);
+  const [winner, setWinner] = useState(null);
 
   // NEW: backend game id
   const [gameId, setGameId] = useState(null);
@@ -577,6 +605,7 @@ export default function CatanSandbox() {
       setPlayers(data.players);
       setCurrent(data.current);
       setLastRoll(data.lastRoll || null);
+      setWinner(data.winner || null);
       setStage("play"); // or "setup" if you keep your existing setup flow
     }
 
@@ -621,6 +650,7 @@ export default function CatanSandbox() {
       setCurrent(state.current);
       setLastRoll(state.lastRoll || null);
       setLastProduction(state.lastProduction || null);
+      setWinner(state.winner || null);
 
       const winner = state.winner;
       if (winner) {
@@ -1322,7 +1352,6 @@ export default function CatanSandbox() {
                 {mode !== "trade" && (
                   <DicePanel lastRoll={lastRoll} onRoll={onRollDice} />
                 )}{(() => {
-                  const winner = checkWinner(players);
                   if (winner) {
                     return (
                       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">

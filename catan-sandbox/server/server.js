@@ -9,12 +9,42 @@ app.use(express.json());
 
 const games = new Map(); // gameId -> CatanGame
 
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({
+    message: "Catan API is running!",
+    version: "1.0.0",
+    endpoints: {
+      "POST /api/games": "Create a new game",
+      "GET /api/games/:id": "Get game state",
+      "POST /api/games/:id/actions": "Perform game action"
+    },
+    activeGames: games.size
+  });
+});
+
 // Create a new game
 app.post("/api/games", (req, res) => {
   const { numPlayers } = req.body || {};
   const game = new CatanGame({ numPlayers: numPlayers || 4 });
   games.set(game.id, game);
   res.json(game.getState());
+});
+
+// List all games
+app.get("/api/games", (req, res) => {
+  const gameList = Array.from(games.values()).map(game => {
+    const state = game.getState();
+    return {
+      id: game.id,
+      numPlayers: game.numPlayers,
+      currentPlayer: game.current,
+      playerNames: game.players.map(p => p.name),
+      winner: state.winner,
+      createdAt: game.log[0]?.timestamp || new Date().toISOString()
+    };
+  });
+  res.json(gameList);
 });
 
 // Get current state

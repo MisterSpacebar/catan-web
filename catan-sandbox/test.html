@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catan API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+        
+        .log-entry {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .log-header {
+            background: #e8e8e8;
+            padding: 10px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+        
+        .log-header:hover {
+            background: #d8d8d8;
+        }
+        
+        .log-content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .log-content.expanded {
+            max-height: 1000px;
+            transition: max-height 0.3s ease-in;
+        }
+        
+        .log-content pre {
+            margin: 0;
+            border-radius: 0;
+        }
+        
+        .toggle-icon {
+            font-size: 14px;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+        
+        .log-summary {
+            font-size: 12px;
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        .status-success { color: #4CAF50; }
+        .status-error { color: #f44; }
+        .status-info { color: #2196F3; }
+    </style>
+</head>
+<body>
+    <h1>Catan Backend API Test</h1>
+    
+    <div>
+        <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
+        <button onclick="createGame()">Create New Game</button>
+        <button onclick="listGames()">List Games</button>
+        <button onclick="quickTest()" style="background: #4CAF50; color: white;">🚀 Quick Test Workflow</button>
+    </div>
+    
+    <div style="margin-top: 10px;">
+        <button onclick="expandAll()" style="background: #2196F3; color: white;">📖 Expand All</button>
+        <button onclick="collapseAll()" style="background: #FF9800; color: white;">📋 Collapse All</button>
+        <button onclick="clearOutput()" style="background: #f44; color: white;">🗑️ Clear Output</button>
+    </div>
+    
+    <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+        <label><strong>Game ID:</strong> 
+            <input type="text" id="gameId" placeholder="Create a game first, ID will auto-populate" style="width: 300px; padding: 5px; margin-left: 10px;">
+        </label>
+        <div style="margin-top: 10px;">
+            <button onclick="getGameState()">Get Game State</button>
+            <button onclick="rollDice()">Roll Dice</button>
+            <button onclick="endTurn()">End Turn</button>
+        </div>
+        <div style="margin-top: 5px; font-size: 12px; color: #666;">
+            💡 Create a game first to auto-populate the Game ID, or copy/paste an existing game ID
+        </div>
+    </div>
+    
+    <div id="output"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        
+        let logCounter = 0;
+        
+        function log(message) {
+            logCounter++;
+            const output = document.getElementById('output');
+            
+            // Determine entry type and create summary
+            let type = 'info';
+            let summary = '';
+            let statusClass = 'status-info';
+            
+            if (message.error) {
+                type = 'error';
+                summary = `Error: ${message.error}`;
+                statusClass = 'status-error';
+            } else if (message.endpoint) {
+                type = 'api';
+                summary = `${message.endpoint} - Status: ${message.status || 'N/A'}`;
+                statusClass = message.status >= 200 && message.status < 300 ? 'status-success' : 'status-error';
+            } else if (message.action) {
+                type = 'action';
+                summary = `Action: ${message.action} - Status: ${message.status || 'N/A'}`;
+                statusClass = message.status >= 200 && message.status < 300 ? 'status-success' : 'status-error';
+            } else if (message.step) {
+                type = 'step';
+                summary = `Step ${message.step}: ${message.action || 'Unknown'}`;
+                statusClass = 'status-info';
+            } else if (message.info) {
+                type = 'info';
+                summary = message.info;
+                statusClass = 'status-info';
+            } else {
+                summary = 'Response Data';
+            }
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const entryId = `log-${logCounter}`;
+            
+            const logEntry = `
+                <div class="log-entry">
+                    <div class="log-header" onclick="toggleLog('${entryId}')">
+                        <div>
+                            <span class="toggle-icon" id="${entryId}-icon">▶</span>
+                            <strong>#${logCounter}</strong> ${summary}
+                            <span class="log-summary ${statusClass}">${timestamp}</span>
+                        </div>
+                    </div>
+                    <div class="log-content" id="${entryId}-content">
+                        <pre>${JSON.stringify(message, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+            
+            output.innerHTML += logEntry;
+            
+            // Auto-scroll to the new entry
+            const newEntry = output.lastElementChild;
+            newEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function toggleLog(entryId) {
+            const content = document.getElementById(`${entryId}-content`);
+            const icon = document.getElementById(`${entryId}-icon`);
+            
+            content.classList.toggle('expanded');
+            icon.classList.toggle('expanded');
+            
+            if (content.classList.contains('expanded')) {
+                icon.textContent = '▼';
+            } else {
+                icon.textContent = '▶';
+            }
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+            logCounter = 0;
+        }
+        
+        function expandAll() {
+            const contents = document.querySelectorAll('.log-content');
+            const icons = document.querySelectorAll('.toggle-icon');
+            
+            contents.forEach(content => content.classList.add('expanded'));
+            icons.forEach(icon => {
+                icon.classList.add('expanded');
+                icon.textContent = '▼';
+            });
+        }
+        
+        function collapseAll() {
+            const contents = document.querySelectorAll('.log-content');
+            const icons = document.querySelectorAll('.toggle-icon');
+            
+            contents.forEach(content => content.classList.remove('expanded'));
+            icons.forEach(icon => {
+                icon.classList.remove('expanded');
+                icon.textContent = '▶';
+            });
+        }
+        
+        async function quickTest() {
+            log({ info: '🚀 Starting quick test workflow...' });
+            
+            // Step 1: Create a game
+            log({ step: 1, action: 'Creating game...' });
+            await createGame();
+            
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 2: Get game state
+            log({ step: 2, action: 'Getting initial game state...' });
+            await getGameState();
+            
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 3: Roll dice
+            log({ step: 3, action: 'Rolling dice...' });
+            await rollDice();
+            
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 4: End turn
+            log({ step: 4, action: 'Ending turn...' });
+            await endTurn();
+            
+            log({ info: '✅ Quick test workflow completed!' });
+        }
+        
+        async function testHealthEndpoint() {
+            try {
+                const response = await fetch(`${API_BASE}/`);
+                const contentType = response.headers.get('content-type');
+                log({ endpoint: 'Health /', status: response.status, contentType });
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    log({ data });
+                } else {
+                    const text = await response.text();
+                    log({ textResponse: text.substring(0, 500) });
+                }
+            } catch (error) {
+                log({ error: 'Health endpoint failed', message: error.message, stack: error.stack });
+            }
+        }
+        
+        async function createGame() {
+            try {
+                const response = await fetch(`${API_BASE}/api/games`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ numPlayers: 4 })
+                });
+                const data = await response.json();
+                log({ endpoint: 'POST /api/games', status: response.status, data });
+                
+                // Auto-populate the game ID field
+                if (data.id) {
+                    document.getElementById('gameId').value = data.id;
+                    log({ info: `Game ID ${data.id} auto-populated in input field` });
+                }
+                
+                // Check if initial buildings were placed
+                if (data.board) {
+                    const placedTowns = data.board.nodes.filter(n => n.building?.type === 'town');
+                    const placedRoads = data.board.edges.filter(e => e.ownerId !== null);
+                    log({ 
+                        initialPlacement: {
+                            townsPlaced: placedTowns.length,
+                            roadsPlaced: placedRoads.length,
+                            expectedTowns: data.players.length * 2,
+                            expectedRoads: data.players.length * 2
+                        }
+                    });
+                }
+            } catch (error) {
+                log({ error: 'Create game failed', message: error.message });
+            }
+        }
+        
+        async function listGames() {
+            try {
+                const response = await fetch(`${API_BASE}/api/games`);
+                const contentType = response.headers.get('content-type');
+                log({ endpoint: 'GET /api/games', status: response.status, contentType });
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    log({ data });
+                } else {
+                    const text = await response.text();
+                    log({ error: 'Expected JSON but got', textResponse: text.substring(0, 500) });
+                }
+            } catch (error) {
+                log({ error: 'List games failed', message: error.message, stack: error.stack });
+            }
+        }
+        
+        async function getGameState() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a game ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}`);
+                const data = await response.json();
+                log({ endpoint: `GET /api/games/${gameId}`, status: response.status, data });
+            } catch (error) {
+                log({ error: 'Get game state failed', message: error.message });
+            }
+        }
+        
+        async function rollDice() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a game ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'rollDice' })
+                });
+                const data = await response.json();
+                log({ action: 'rollDice', status: response.status, data });
+            } catch (error) {
+                log({ error: 'Roll dice failed', message: error.message });
+            }
+        }
+        
+        async function endTurn() {
+            const gameId = document.getElementById('gameId').value;
+            if (!gameId) {
+                log({ error: 'Please enter a game ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'endTurn' })
+                });
+                const data = await response.json();
+                log({ action: 'endTurn', status: response.status, data });
+            } catch (error) {
+                log({ error: 'End turn failed', message: error.message });
+            }
+        }
+    </script>
+</body>
+</html>

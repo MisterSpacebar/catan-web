@@ -1,6 +1,6 @@
 // server/CatanGame.js (full rules engine, server-side source of truth)
-const { v4: uuid } = require("uuid");
-const { generateBoard } = require("../shared/board");
+const crypto = require("crypto");
+const { generateBoard } = require("../shared/board.cjs");
 
 // ----- Constants shared with the front-end (duplicated here for now) -----
 
@@ -199,7 +199,7 @@ function shuffle(arr) {
 
 class CatanGame {
   constructor({ numPlayers = 4 } = {}) {
-    this.id = uuid();
+    this.id = crypto.randomUUID();
     this.numPlayers = numPlayers;
     this.board = generateBoard();
     this.players = this._initPlayers(numPlayers);
@@ -208,6 +208,9 @@ class CatanGame {
     this.lastProduction = null;
     this.devCardDeck = shuffle(DEV_CARD_DECK);
     this.log = [];
+    
+    // Add initial settlements and roads for each player
+    this._placeInitialBuildings();
   }
 
   // ----- internal helpers -----
@@ -227,6 +230,78 @@ class CatanGame {
       longestRoad: false,
       boughtDevCardThisTurn: false,
     }));
+  }
+
+  _placeInitialBuildings() {
+    const { nodes, edges, tiles } = this.board;
+    
+    // Find desert tile indices
+    const desertTileIndices = tiles
+      .map((tile, index) => tile.resource === "desert" ? index : -1)
+      .filter(index => index !== -1);
+    
+    // Filter out nodes that are adjacent to desert tiles or not buildable
+    const availableNodes = nodes.filter(n => {
+      if (n.building) return false; // already occupied
+      if (!n.canBuild) return false; // not adjacent to land
+      
+      // Check if this node is adjacent to any desert tile
+      const isAdjacentToDesert = n.adjHexes.some(hexIdx => 
+        desertTileIndices.includes(hexIdx)
+      );
+      
+      return !isAdjacentToDesert; // only allow nodes NOT adjacent to desert
+    });
+    
+    // For each player, place 2 towns and connect each with a road
+    for (let playerId = 0; playerId < this.numPlayers; playerId++) {
+      for (let settlement = 0; settlement < 2; settlement++) {
+        if (availableNodes.length === 0) break;
+        
+        // Randomly select a node for the town
+        const randomIndex = Math.floor(Math.random() * availableNodes.length);
+        const selectedNode = availableNodes[randomIndex];
+        
+        // Place the town using the buildTown method (but free)
+        const nodeId = selectedNode.id;
+        selectedNode.building = { ownerId: playerId, type: "town" };
+        
+        // Remove this node from available nodes
+        availableNodes.splice(randomIndex, 1);
+        
+        // Find edges connected to this node and place a road on a random one
+        const connectedEdges = edges.filter(e => {
+          if (e.ownerId !== null) return false; // edge already owned
+          
+          const isConnected = e.n1 === nodeId || e.n2 === nodeId;
+          if (!isConnected) return false;
+          
+          // Check if both nodes connected by this edge are buildable
+          const node1 = nodes.find(n => n.id === e.n1);
+          const node2 = nodes.find(n => n.id === e.n2);
+          
+          return node1?.canBuild && node2?.canBuild;
+        });
+        
+        if (connectedEdges.length > 0) {
+          const randomEdgeIndex = Math.floor(Math.random() * connectedEdges.length);
+          connectedEdges[randomEdgeIndex].ownerId = playerId;
+        }
+        
+        // Remove nodes that are too close (adjacent) to maintain spacing
+        const adjacentNodeIds = edges
+          .filter(e => e.n1 === nodeId || e.n2 === nodeId)
+          .flatMap(e => [e.n1, e.n2])
+          .filter(id => id !== nodeId);
+        
+        // Remove adjacent nodes from available nodes to prevent close placement
+        for (let i = availableNodes.length - 1; i >= 0; i--) {
+          if (adjacentNodeIds.includes(availableNodes[i].id)) {
+            availableNodes.splice(i, 1);
+          }
+        }
+      }
+    }
   }
 
   _emit(event) {

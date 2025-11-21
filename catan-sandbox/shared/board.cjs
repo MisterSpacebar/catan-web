@@ -263,7 +263,7 @@ function generateBoard() {
   return { tiles, nodes: filteredNodes, edges: filteredEdges };
 }
 
-export {
+module.exports = {
   TILE_SIZE,
   HEX_RADIUS,
   WATER_RADIUS,
