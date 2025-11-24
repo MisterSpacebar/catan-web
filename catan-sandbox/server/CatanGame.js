@@ -229,6 +229,7 @@ class CatanGame {
       largestArmy: false,
       longestRoad: false,
       boughtDevCardThisTurn: false,
+      hasRolled: false,
     }));
   }
 
@@ -320,6 +321,13 @@ class CatanGame {
     }));
   }
 
+  _requireRoll(playerId) {
+    const player = this.players[playerId];
+    if (!player.hasRolled) {
+      throw new Error("You must roll the dice before building or trading!");
+    }
+  }
+
   _awardProduction(rollTotal) {
     const tiles = this.board.tiles;
     const nodes = this.board.nodes;
@@ -391,15 +399,27 @@ class CatanGame {
   // ----- Turn / dice / robber -----
 
   rollDice() {
+    const currentPlayer = this.players[this.current];
+    
+    // Check if player already rolled
+    if (currentPlayer.hasRolled) {
+      throw new Error("You already rolled this turn!");
+    }
+    
     const d1 = 1 + Math.floor(Math.random() * 6);
     const d2 = 1 + Math.floor(Math.random() * 6);
     const total = d1 + d2;
     this.lastRoll = { d1, d2, total };
-
+  
+    // Mark that this player has rolled
+    this.players = this.players.map((p) =>
+      p.id === this.current ? { ...p, hasRolled: true } : p
+    );
+  
     if (total !== 7) {
       this._awardProduction(total);
     }
-
+  
     const event = this._emit({ type: "rollDice", d1, d2, total });
     return event;
   }
@@ -416,6 +436,11 @@ class CatanGame {
   // ----- Building -----
 
   buildRoad(edgeId, playerId = this.current, opts = { free: false }) {
+
+    if (!opts.free) {
+      this._requireRoll(playerId);
+    }
+
     const board = this.board;
     const edge = board.edges[edgeId];
     if (!edge) throw new Error("Invalid edge");
@@ -477,6 +502,8 @@ class CatanGame {
   }
 
   buildTown(nodeId, playerId = this.current) {
+    this._requireRoll(playerId);
+
     const board = this.board;
     const node = board.nodes[nodeId];
     if (!node) throw new Error("Invalid node");
@@ -532,6 +559,7 @@ class CatanGame {
   }
 
   buildCity(nodeId, playerId = this.current) {
+    this._requireRoll(playerId);
     const board = this.board;
     const node = board.nodes[nodeId];
     if (!node) throw new Error("Invalid node");
@@ -573,6 +601,7 @@ class CatanGame {
   // ----- Trading -----
 
   tradeHarbor(playerId, giveResource, receiveResource) {
+    this._requireRoll(playerId);
     const player = this.players[playerId];
     if (!player) throw new Error("Invalid player");
 
@@ -603,6 +632,7 @@ class CatanGame {
   // ----- Dev cards -----
 
   buyDevCard(playerId = this.current) {
+    this._requireRoll(playerId);
     if (!this.devCardDeck.length) {
       throw new Error("No development cards left");
     }
@@ -785,12 +815,13 @@ class CatanGame {
       ...p,
       devCards: p.devCards.map((card) => ({ ...card, canPlay: true })),
       boughtDevCardThisTurn: false,
+      hasRolled: false, // ADD THIS LINE - reset for next player
     }));
-
+  
     this.current = this.players.length
       ? (this.current + 1) % this.players.length
       : 0;
-
+  
     return this._emit({ type: "endTurn", nextPlayer: this.current });
   }
 }

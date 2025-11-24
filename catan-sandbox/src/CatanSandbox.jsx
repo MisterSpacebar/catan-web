@@ -889,11 +889,18 @@ export default function CatanSandbox() {
       return;
     }
     
-    // Handle different card types
+    // Handle different card types - NOW USING SERVER
     if (card.type === 'knight') {
-      playKnight(cardIndex);
+      sendAction("playKnight");
+      setMode('move-robber');
+      setShowDevCardPanel(false);
+      setLastAction({ type: 'success', message: 'Knight played! Move the robber.', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 2000);
     } else if (card.type === 'road-building') {
-      playRoadBuilding(cardIndex);
+      sendAction("playRoadBuilding");
+      setShowDevCardPanel(false);
+      setLastAction({ type: 'success', message: 'Road Building! Build 2 free roads.', timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 3000);
     } else if (card.type === 'year-of-plenty') {
       setShowYearOfPlentyModal(true);
       setShowDevCardPanel(false);
@@ -901,58 +908,6 @@ export default function CatanSandbox() {
       setShowMonopolyModal(true);
       setShowDevCardPanel(false);
     }
-  };
-  
-  const playKnight = (cardIndex) => {
-    setPlayers(prevPlayers => {
-      let newPlayers = prevPlayers.map(p => {
-        if (p.id === current) {
-          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
-          return {
-            ...p,
-            devCards: newDevCards,
-            playedDevCards: [...p.playedDevCards, 'knight'],
-            knightsPlayed: p.knightsPlayed + 1
-          };
-        }
-        return p;
-      });
-      
-      // Update largest army
-      newPlayers = updateLargestArmy(newPlayers);
-      
-      // Recalculate VP
-      return newPlayers.map(p => ({
-        ...p,
-        vp: calculateVP(p, board)
-      }));
-    });
-    
-    setMode('move-robber');
-    setShowDevCardPanel(false);
-    setLastAction({ type: 'success', message: 'Knight played! Move the robber.', timestamp: Date.now() });
-    setTimeout(() => setLastAction(null), 2000);
-  };
-  
-  const playRoadBuilding = (cardIndex) => {
-    setPlayers(prevPlayers => {
-      const newPlayers = prevPlayers.map(p => {
-        if (p.id === current) {
-          const newDevCards = p.devCards.filter((_, i) => i !== cardIndex);
-          return {
-            ...p,
-            devCards: newDevCards,
-            playedDevCards: [...p.playedDevCards, 'road-building']
-          };
-        }
-        return p;
-      });
-      return newPlayers;
-    });
-    
-    setShowDevCardPanel(false);
-    setLastAction({ type: 'success', message: 'Road Building! Build 2 free roads.', timestamp: Date.now() });
-    setTimeout(() => setLastAction(null), 3000);
   };
   
   const playYearOfPlenty = (resource1, resource2) => {
