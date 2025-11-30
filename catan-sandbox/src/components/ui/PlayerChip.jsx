@@ -43,21 +43,21 @@ export function PlayerLabel({ playerId, showDot = true, size = "md", className }
   
   const sizeClasses = {
     sm: "text-[10px] px-1.5 py-0.5",
-    md: "text-xs px-2 py-0.5",
-    lg: "text-sm px-2.5 py-1",
+    md: "text-[11px] px-2 py-0.5",
+    lg: "text-[13px] px-2.5 py-1",
   };
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md font-medium",
+        "inline-flex items-center gap-1.5 rounded-full font-semibold shadow-sm",
         sizeClasses[size],
         className
       )}
       style={{ 
-        backgroundColor: color.bg,
+        background: `linear-gradient(135deg, ${color.primary}25, ${color.primary}15)`,
         color: color.primary,
-        border: `1px solid ${color.border}`,
+        boxShadow: `0 2px 6px ${color.primary}15`,
       }}
     >
       {showDot && <PlayerDot playerId={playerId} size="sm" />}
@@ -80,24 +80,26 @@ export function PlayerTurnChip({ player, isActive = false, size = "md", classNam
   const color = getPlayerColor(player?.id || 0);
   
   const sizeClasses = {
-    sm: "text-xs px-2 py-1",
-    md: "text-sm px-2.5 py-1.5",
-    lg: "text-base px-3 py-2",
+    sm: "text-[11px] px-2 py-1",
+    md: "text-[13px] px-2.5 py-1.5",
+    lg: "text-[14px] px-3 py-2",
   };
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg font-medium transition-all duration-200",
-        isActive && "shadow-lg",
+        "inline-flex items-center gap-2 rounded-xl font-medium transition-all duration-200",
         sizeClasses[size],
         className
       )}
       style={{ 
-        backgroundColor: isActive ? color.bg : "rgba(15, 23, 42, 0.5)",
+        background: isActive 
+          ? `linear-gradient(135deg, ${color.primary}20, ${color.primary}10)` 
+          : "linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.4))",
         color: isActive ? color.primary : "#94a3b8",
-        border: `1px solid ${isActive ? color.border : "transparent"}`,
-        boxShadow: isActive ? `0 0 12px ${color.glow}` : "none",
+        boxShadow: isActive 
+          ? `0 4px 16px ${color.glow}, inset 0 1px 0 rgba(255,255,255,0.05)` 
+          : "0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.02)",
       }}
     >
       <PlayerDot playerId={player?.id || 0} size={size === "lg" ? "lg" : "md"} />
@@ -124,20 +126,25 @@ export function PlayerCard({ player, isSelected = false, onClick, children, clas
       className={cn(
         "relative rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer",
         "hover:-translate-y-0.5",
-        isSelected && "shadow-xl shadow-black/35",
         className
       )}
       style={{
-        backgroundColor: isSelected ? `${color.primary}10` : "rgba(15, 23, 42, 0.6)",
-        border: `1px solid ${isSelected ? color.border : "rgba(148, 163, 184, 0.08)"}`,
-        boxShadow: isSelected ? `0 0 18px ${color.glow}` : "0 12px 30px rgba(0,0,0,0.25)",
+        background: isSelected 
+          ? `linear-gradient(135deg, ${color.primary}12, ${color.primary}06)` 
+          : "linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6))",
+        boxShadow: isSelected 
+          ? `0 8px 24px ${color.glow}, 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)` 
+          : "0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.02)",
       }}
       onClick={onClick}
     >
-      {/* Left accent bar */}
+      {/* Left accent bar with gradient */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1.5"
-        style={{ backgroundColor: color.primary }}
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full"
+        style={{ 
+          background: `linear-gradient(180deg, ${color.primary}, ${color.primary}80)`,
+          boxShadow: isSelected ? `0 0 8px ${color.glow}` : "none",
+        }}
       />
       
       <div className="pl-3">

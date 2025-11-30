@@ -285,38 +285,42 @@ function CollapsibleSidebar({ collapsed, onToggle, side, children, icon: Icon, t
     <motion.aside
       animate={{ width: collapsed ? 48 : 280 }}
       transition={{ type: "spring", stiffness: 300, damping: 35 }}
-      className="h-full flex-shrink-0 relative drop-shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
+      className="h-full flex-shrink-0 relative"
     >
       {collapsed ? (
-        <div className="h-full rounded-2xl bg-slate-950/60 ring-1 ring-slate-800/70 backdrop-blur-lg flex flex-col items-center py-3 gap-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+        <div className="h-full rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 backdrop-blur-lg flex flex-col items-center py-3 gap-2 shadow-2xl shadow-black/40">
           <button
             onClick={onToggle}
-            className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
           >
-            {isLeft ? <CaretRight size={16} weight="bold" /> : <CaretLeft size={16} weight="bold" />}
+            {isLeft ? <CaretRight size={14} weight="bold" /> : <CaretLeft size={14} weight="bold" />}
           </button>
-          <div className="w-px h-4 bg-slate-700/50" />
-          {Icon && <Icon size={16} className="text-slate-500" />}
+          <div className="w-4 h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent" />
+          {Icon && <Icon size={14} className="text-slate-500" />}
           <span className="text-[10px] text-slate-600 [writing-mode:vertical-rl] rotate-180">{title}</span>
         </div>
       ) : (
-        <div className="h-full relative rounded-2xl bg-slate-950/60 ring-1 ring-slate-800/70 shadow-[0_18px_50px_rgba(0,0,0,0.35)] overflow-hidden">
+        <div className="h-full relative rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-lg">
           {children}
+          {/* Subtle inner edge highlight instead of white line */}
           <div
             className={cn(
-              "absolute top-6 bottom-6 w-[2px] bg-gradient-to-b from-white/10 via-white/5 to-transparent rounded-full shadow-[0_0_18px_rgba(0,0,0,0.35)]",
+              "absolute top-4 bottom-4 w-px",
               isLeft ? "right-0" : "left-0"
             )}
+            style={{
+              background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.04) 20%, rgba(255,255,255,0.04) 80%, transparent)",
+            }}
           />
           {/* Toggle button */}
           <button
             onClick={onToggle}
             className={cn(
-              "absolute top-3 p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200 transition-colors z-10",
+              "absolute top-3 p-1.5 rounded-xl bg-gradient-to-br from-slate-700/60 to-slate-800/80 hover:from-slate-600/60 hover:to-slate-700/80 text-slate-400 hover:text-slate-200 transition-all shadow-lg shadow-black/20 z-10",
               isLeft ? "right-2" : "left-2"
             )}
           >
-            {isLeft ? <CaretLeft size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
+            {isLeft ? <CaretLeft size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
           </button>
         </div>
       )}
@@ -355,12 +359,12 @@ function RulesSidebarContent() {
     <Card className="h-full overflow-hidden shadow-2xl shadow-black/35">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Book size={16} className="text-emerald-400" />
-          <span className="text-base font-semibold">Quick Rules</span>
+          <Book size={14} className="text-emerald-400" />
+          <span className="text-[14px] font-semibold">Quick Rules</span>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto space-y-3 text-sm leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
+      <CardContent className="overflow-y-auto space-y-2.5 text-[13px] leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
         {/* How to play - Collapsible */}
         <Collapsible 
           title="How to Play" 
@@ -370,13 +374,13 @@ function RulesSidebarContent() {
         >
           <div className="space-y-2">
             {steps.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-bold flex items-center justify-center">
+              <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
                   {idx + 1})
                 </span>
                 <div>
-                  <div className="text-sm text-slate-100 font-semibold">{step.title}</div>
-                  <div className="text-[13px] text-slate-400 mt-0.5">{step.desc}</div>
+                  <div className="text-[13px] text-slate-100 font-semibold">{step.title}</div>
+                  <div className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
                 </div>
               </div>
             ))}
@@ -392,9 +396,9 @@ function RulesSidebarContent() {
         >
           <div className="grid grid-cols-2 gap-1.5">
             {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
-              <div key={key} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
-                <span className="text-lg">{resourceEmoji(key)}</span>
-                <span className="text-sm text-slate-200 capitalize font-medium">{key}</span>
+              <div key={key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
+                <span className="text-base drop-shadow-sm">{resourceEmoji(key)}</span>
+                <span className="text-[13px] text-slate-200 capitalize font-medium">{key}</span>
               </div>
             ))}
           </div>
@@ -409,16 +413,16 @@ function RulesSidebarContent() {
         >
           <div className="space-y-1.5">
             {buildCosts.map((row) => (
-              <div key={row.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
-                <span className="text-sm font-semibold text-slate-100">{row.name}</span>
+              <div key={row.name} className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <span className="text-[13px] font-semibold text-slate-100">{row.name}</span>
                 <div className="flex items-center gap-1">
                   {row.cost.map((c, i) => (
                     <div
                       key={`${row.name}-${c.resource}-${i}`}
-                      className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800/70"
+                      className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
                     >
-                      <span className="text-sm">{resourceEmoji(c.resource)}</span>
-                      <span className="text-xs font-semibold text-slate-200">{c.amount}</span>
+                      <span className="text-[13px] drop-shadow-sm">{resourceEmoji(c.resource)}</span>
+                      <span className="text-[11px] font-semibold text-slate-200">{c.amount}</span>
                     </div>
                   ))}
                 </div>

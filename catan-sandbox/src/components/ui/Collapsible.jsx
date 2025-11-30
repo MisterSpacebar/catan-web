@@ -19,10 +19,11 @@ export function Collapsible({
   return (
     <div 
       className={cn(
-        "rounded-2xl overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.28)]",
-        variant === "default" && "bg-slate-900/40",
+        "rounded-2xl overflow-hidden",
+        // Subtle gradient background with shadow instead of rings
+        variant === "default" && "bg-gradient-to-br from-slate-900/50 to-slate-950/60 shadow-lg shadow-black/25",
         variant === "ghost" && "bg-transparent",
-        variant === "elevated" && "bg-slate-800/45",
+        variant === "elevated" && "bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-xl shadow-black/30",
         className
       )}
     >
@@ -31,26 +32,28 @@ export function Collapsible({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "w-full flex items-center justify-between gap-2",
-          "px-4 py-3",
-          "text-left transition-colors duration-150",
-          "hover:bg-white/[0.04]",
+          "px-3.5 py-2.5",
+          "text-left transition-all duration-150",
+          "hover:bg-white/[0.03]",
           "focus:outline-none",
           "group rounded-xl"
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {/* Left accent bar */}
+          {/* Left accent bar with glow */}
           <div 
             className={cn(
-              "w-1.5 h-6 rounded-full transition-colors duration-150",
-              isOpen ? "bg-indigo-400/70" : "bg-slate-700 group-hover:bg-slate-600"
+              "w-1 h-5 rounded-full transition-all duration-200",
+              isOpen 
+                ? "bg-gradient-to-b from-indigo-400 to-indigo-500 shadow-sm shadow-indigo-500/40" 
+                : "bg-slate-700/80 group-hover:bg-slate-600"
             )}
           />
           
           {/* Icon */}
           {Icon && (
             <Icon 
-              size={16}
+              size={14}
               weight={iconWeight}
               className={cn(
                 "flex-shrink-0 transition-colors duration-150",
@@ -62,17 +65,17 @@ export function Collapsible({
           {/* Title */}
           <span 
             className={cn(
-              "text-sm font-semibold truncate transition-colors duration-150",
+              "text-[13px] font-semibold truncate transition-colors duration-150",
               isOpen ? "text-slate-300" : "text-slate-400 group-hover:text-slate-300"
             )}
           >
             {title}
           </span>
           
-          {/* Badge */}
+          {/* Badge - chip style */}
           {badge != null && (
             <span 
-              className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/15 text-indigo-400"
+              className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-indigo-500/20 to-purple-500/15 text-indigo-300 shadow-sm shadow-indigo-500/10"
             >
               {badge}
             </span>
@@ -86,7 +89,7 @@ export function Collapsible({
           className="flex-shrink-0"
         >
           <CaretDown 
-            size={16}
+            size={14}
             weight="bold"
             className={cn(
               "transition-colors duration-150",
@@ -110,7 +113,7 @@ export function Collapsible({
             className="overflow-hidden"
           >
             {/* Content wrapper */}
-            <div className="px-4 pb-4 pt-2 space-y-2">
+            <div className="px-3.5 pb-3.5 pt-1 space-y-2">
               {children}
             </div>
           </motion.div>

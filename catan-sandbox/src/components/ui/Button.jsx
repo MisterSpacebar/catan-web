@@ -8,10 +8,10 @@ const buttonVariants = cva(
   [
     "relative inline-flex items-center justify-center gap-1.5",
     "whitespace-nowrap rounded-xl",
-    "text-sm font-semibold",
+    "text-[13px] font-semibold",
     "transition-all duration-150 ease-out",
-    // Focus state - subtle glow
-    "focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50",
+    // Focus state - subtle glow instead of ring
+    "focus:outline-none focus-visible:shadow-[0_0_0_2px_rgba(99,102,241,0.4)]",
     // Disabled state
     "disabled:pointer-events-none disabled:opacity-40",
     // Active press effect
@@ -21,9 +21,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: [
-          "bg-slate-800/80 text-slate-300",
-          "shadow-md shadow-black/20",
-          "hover:bg-slate-700/80 hover:text-white hover:shadow-lg",
+          "bg-gradient-to-b from-slate-700/90 to-slate-800/90 text-slate-300",
+          "shadow-lg shadow-black/25",
+          "hover:from-slate-600/90 hover:to-slate-700/90 hover:text-white",
         ],
         primary: [
           "bg-gradient-to-b from-indigo-500 to-indigo-600",
@@ -32,9 +32,9 @@ const buttonVariants = cva(
           "hover:from-indigo-400 hover:to-indigo-500 hover:shadow-xl hover:shadow-indigo-500/40",
         ],
         secondary: [
-          "bg-slate-700/80 text-slate-300",
-          "shadow-md shadow-black/20",
-          "hover:bg-slate-600/80 hover:text-white hover:shadow-lg",
+          "bg-gradient-to-b from-slate-600/80 to-slate-700/90 text-slate-300",
+          "shadow-lg shadow-black/25",
+          "hover:from-slate-500/80 hover:to-slate-600/90 hover:text-white",
         ],
         success: [
           "bg-gradient-to-b from-emerald-500 to-emerald-600",
@@ -60,25 +60,24 @@ const buttonVariants = cva(
         ],
         outline: [
           "bg-transparent text-slate-400",
-          "ring-1 ring-inset ring-slate-700/50",
-          "shadow-sm",
-          "hover:bg-white/[0.03] hover:text-white hover:ring-slate-600/50",
+          "shadow-[inset_0_0_0_1px_rgba(100,116,139,0.3)]",
+          "hover:bg-white/[0.03] hover:text-white hover:shadow-[inset_0_0_0_1px_rgba(100,116,139,0.5)]",
         ],
         subtle: [
-          "bg-slate-900/40 text-slate-400",
-          "hover:bg-slate-800/50 hover:text-slate-200",
-          "shadow-inner shadow-black/10",
+          "bg-gradient-to-b from-slate-800/50 to-slate-900/60 text-slate-400",
+          "shadow-md shadow-black/20",
+          "hover:from-slate-700/50 hover:to-slate-800/60 hover:text-slate-200",
         ],
       },
       size: {
-        default: "h-10 px-4 py-2.5",
-        xs: "h-8 px-3 text-xs gap-1",
-        sm: "h-9 px-3.5 text-[13px] gap-1",
-        lg: "h-11 px-5 text-base rounded-2xl",
-        xl: "h-12 px-6 text-base rounded-2xl",
-        icon: "h-10 w-10 p-0",
-        iconSm: "h-8 w-8 p-0",
-        iconLg: "h-11 w-11 p-0 rounded-2xl",
+        default: "h-9 px-3.5 py-2",
+        xs: "h-7 px-2.5 text-[11px] gap-1",
+        sm: "h-8 px-3 text-[12px] gap-1",
+        lg: "h-10 px-4 text-[14px] rounded-2xl",
+        xl: "h-11 px-5 text-[14px] rounded-2xl",
+        icon: "h-9 w-9 p-0",
+        iconSm: "h-7 w-7 p-0",
+        iconLg: "h-10 w-10 p-0 rounded-2xl",
       },
     },
     defaultVariants: {

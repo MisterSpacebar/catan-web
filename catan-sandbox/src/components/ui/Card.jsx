@@ -8,29 +8,35 @@ const Card = React.forwardRef(({ className, children, variant = "default", glow,
     className={cn(
       "relative rounded-2xl overflow-hidden",
       "transition-all duration-200",
-      // Variants
+      // Variants with gradients instead of flat colors
       variant === "default" && [
-        "bg-slate-900/80 backdrop-blur-lg",
-        "shadow-2xl shadow-black/35",
+        "bg-gradient-to-br from-slate-900/90 to-slate-950/95 backdrop-blur-lg",
+        "shadow-2xl shadow-black/40",
       ],
       variant === "elevated" && [
-        "bg-slate-800/60 backdrop-blur-lg",
+        "bg-gradient-to-br from-slate-800/70 to-slate-900/80 backdrop-blur-lg",
         "shadow-2xl shadow-black/45",
       ],
       variant === "glass" && [
-        "bg-white/[0.04] backdrop-blur-xl",
+        "bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl",
         "shadow-xl shadow-black/25",
       ],
       variant === "surface" && [
-        "bg-slate-900/50",
+        "bg-gradient-to-br from-slate-900/60 to-slate-950/70",
         "shadow-lg shadow-black/25",
       ],
       // Interactive
       interactive && "cursor-pointer hover:-translate-y-0.5 hover:shadow-2xl",
-      // Glow
-      glow && "ring-1 ring-indigo-500/20",
+      // Glow - using shadow instead of ring
+      glow && "shadow-[0_0_20px_rgba(99,102,241,0.15)]",
       className
     )}
+    style={{
+      // Subtle inner highlight at top
+      boxShadow: glow 
+        ? "0 0 20px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.04)" 
+        : "inset 0 1px 0 rgba(255,255,255,0.03)",
+    }}
     {...props}
   >
     <div className="relative">

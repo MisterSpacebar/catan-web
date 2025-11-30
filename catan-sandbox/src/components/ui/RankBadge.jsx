@@ -12,8 +12,8 @@ export function RankBadge({ rank, size = "md", className }) {
   
   const sizeClasses = {
     sm: "w-5 h-5 text-[10px]",
-    md: "w-6 h-6 text-xs",
-    lg: "w-8 h-8 text-sm",
+    md: "w-6 h-6 text-[11px]",
+    lg: "w-8 h-8 text-[13px]",
   };
 
   const iconSize = size === "sm" ? 10 : size === "md" ? 12 : 16;
@@ -28,13 +28,16 @@ export function RankBadge({ rank, size = "md", className }) {
   return (
     <div
       className={cn(
-        "rounded-md flex items-center justify-center font-bold flex-shrink-0",
+        "rounded-lg flex items-center justify-center font-bold flex-shrink-0 shadow-lg",
         sizeClasses[size],
         className
       )}
       style={{
         background: rankColor?.gradient || "linear-gradient(135deg, #334155, #1e293b)",
         color: rank <= 3 ? "white" : "#64748b",
+        boxShadow: rank <= 3 
+          ? `0 4px 12px ${rankColor?.glow || 'rgba(0,0,0,0.2)'}` 
+          : "0 4px 12px rgba(0,0,0,0.2)",
       }}
     >
       {renderIcon()}
@@ -59,14 +62,18 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg transition-all duration-200",
+        "flex items-center gap-2 rounded-xl transition-all duration-200",
         "hover:translate-x-0.5",
         compact ? "p-2" : "p-2.5",
         className
       )}
       style={{
-        background: hasRankStyle ? rankColor?.bg : "rgba(15, 23, 42, 0.4)",
-        border: hasRankStyle ? `1px solid ${rankColor?.border}` : "1px solid transparent",
+        background: hasRankStyle 
+          ? `linear-gradient(135deg, ${rankColor?.bg || 'rgba(15,23,42,0.4)'}, rgba(15,23,42,0.5))` 
+          : "linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.5))",
+        boxShadow: hasRankStyle 
+          ? `0 4px 16px ${rankColor?.glow || 'rgba(0,0,0,0.15)'}, inset 0 1px 0 rgba(255,255,255,0.03)` 
+          : "0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.02)",
       }}
     >
       {/* Rank */}
@@ -75,12 +82,15 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
       {/* Player info */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: playerColor.primary }}
+          className="w-2 h-2 rounded-full flex-shrink-0 shadow-sm"
+          style={{ 
+            backgroundColor: playerColor.primary,
+            boxShadow: `0 0 6px ${playerColor.primary}50`,
+          }}
         />
         <span className={cn(
           "font-medium text-slate-200 truncate",
-          compact ? "text-xs" : "text-sm"
+          compact ? "text-[11px]" : "text-[13px]"
         )}>
           {player?.name || "Unknown"}
         </span>
@@ -90,7 +100,7 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
       <div className="text-right flex-shrink-0">
         <div className={cn(
           "font-bold text-slate-200",
-          compact ? "text-sm" : "text-base"
+          compact ? "text-[13px]" : "text-[14px]"
         )}>
           {player?.victoryPoints || 0}
         </div>
