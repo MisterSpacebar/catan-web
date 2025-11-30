@@ -571,7 +571,7 @@ export default function CatanSandbox() {
   const { board, setBoard, rerandomize, bbox } = useBoard();
 
   const [stage, setStage] = useState("setup"); // setup | play
-  const [numPlayers, setNumPlayers] = useState(4);
+  const [numPlayers, setNumPlayers] = useState(3);
   const [players, setPlayers] = useState([]);
   const [current, setCurrent] = useState(0);
   const [mode, setMode] = useState("select"); // select | build-road | build-town | build-city | move-robber | trade
@@ -587,14 +587,17 @@ export default function CatanSandbox() {
 
   // NEW: backend game id
   const [gameId, setGameId] = useState(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // NEW: create a game on the server when the component mounts
+  // NEW: create a game on the server when the component mounts (only once)
   React.useEffect(() => {
+    if (hasInitialized) return; // Don't run if already initialized
+    
     async function createGame() {
       const res = await fetch("http://localhost:4000/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numPlayers: 4 }), // or numPlayers if you wire that up
+        body: JSON.stringify({ numPlayers: 3 }), // or numPlayers if you wire that up
       });
 
       const data = await res.json();
@@ -607,10 +610,11 @@ export default function CatanSandbox() {
       setLastRoll(data.lastRoll || null);
       setWinner(data.winner || null);
       setStage("play"); // or "setup" if you keep your existing setup flow
+      setHasInitialized(true); // Mark as initialized
     }
 
     createGame();
-  }, [setBoard]); // empty-ish deps: runs once on mount
+  }, []); // Only run once on mount
 
   const API_BASE = "http://localhost:4000"; // or leave off host if you use a Vite proxy
   // Helper to send actions to server and update state accordingly
@@ -747,36 +751,64 @@ export default function CatanSandbox() {
   };
 
   // Initialize a new game
-  const startGame = () => {
-    const ppl = Array.from({ length: numPlayers }, (_, i) => ({
-      id: i,
-      name: `Player ${i + 1}`,
-      color: DEFAULT_COLORS[i],
-      resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 }, // Starting resources
-      vp: 0,
-      devCards: [],
-      playedDevCards: [],
-      knightsPlayed: 0,
-      largestArmy: false,
-      longestRoad: false,
-      boughtDevCardThisTurn: false
-    }));
-    
-    // Shuffle dev card deck
-    const shuffledDeck = randShuffle([...DEV_CARD_DECK]);
-    setDevCardDeck(shuffledDeck);
-    
-    // Use the existing board (that may have been customized) and add initial placements
-    const boardWithInitialPlacements = placeInitialBuildings(board);
-    setBoard(boardWithInitialPlacements);
-    
-    setPlayers(ppl);
-    setCurrent(0);
-    setStage("play");
-    setMode("select");
-    setLastRoll(null);
-    setSelection(null);
-    setLastProduction(null);
+  const startGame = async () => {
+    try {
+      // Create a new game on the server with the selected number of players
+      const res = await fetch("http://localhost:4000/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numPlayers }),
+      });
+
+      const data = await res.json();
+      setGameId(data.id);
+
+      // Use the current board (which may have been randomized in setup) instead of server's board
+      // Add initial placements to the current board
+      const boardWithInitialPlacements = placeInitialBuildings({ ...board });
+      setBoard(boardWithInitialPlacements);
+      
+      // Use server's player data but with our board
+      setPlayers(data.players);
+      setCurrent(data.current);
+      setLastRoll(data.lastRoll || null);
+      setWinner(data.winner || null);
+      setStage("play");
+      setMode("select");
+      setLastRoll(null);
+      setSelection(null);
+      setLastProduction(null);
+    } catch (err) {
+      console.error("Failed to create new game:", err);
+      // Fallback to client-side game creation
+      const ppl = Array.from({ length: numPlayers }, (_, i) => ({
+        id: i,
+        name: `Player ${i + 1}`,
+        color: DEFAULT_COLORS[i],
+        resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 },
+        vp: 0,
+        devCards: [],
+        playedDevCards: [],
+        knightsPlayed: 0,
+        largestArmy: false,
+        longestRoad: false,
+        boughtDevCardThisTurn: false
+      }));
+      
+      const shuffledDeck = randShuffle([...DEV_CARD_DECK]);
+      setDevCardDeck(shuffledDeck);
+      
+      const boardWithInitialPlacements = placeInitialBuildings(board);
+      setBoard(boardWithInitialPlacements);
+      
+      setPlayers(ppl);
+      setCurrent(0);
+      setStage("play");
+      setMode("select");
+      setLastRoll(null);
+      setSelection(null);
+      setLastProduction(null);
+    }
   };
 
   const newGame = () => {
@@ -787,6 +819,7 @@ export default function CatanSandbox() {
     setLastRoll(null);
     setSelection(null);
     setLastProduction(null);
+    setGameId(null); // Reset game ID so we create a new one
     // Generate a fresh board without initial placements
     setBoard(generateBoard());
   };

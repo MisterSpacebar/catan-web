@@ -77,6 +77,7 @@
         <button onclick="listGames()">List Games</button>
         <button onclick="clearAllGames()" style="background: #f44; color: white;">🗑️ Clear All Games</button>
         <button onclick="quickTest()" style="background: #4CAF50; color: white;">🚀 Quick Test Workflow</button>
+        <button onclick="testGeminiAI()" style="background: #9C27B0; color: white;">🤖 Test Gemini AI</button>
     </div>
     
     <div style="margin-top: 10px;">
@@ -1178,6 +1179,64 @@
                 log({ action: 'endTurn', status: response.status, data });
             } catch (error) {
                 log({ error: 'End turn failed', message: error.message });
+            }
+        }
+        
+        async function testGeminiAI() {
+            log({ info: '🤖 Testing Gemini AI...' });
+            
+            try {
+                // Step 1: Check Gemini AI health
+                log({ step: 1, action: 'Checking Gemini AI health...' });
+                const healthResponse = await fetch('http://localhost:5100/health');
+                const healthData = await healthResponse.json();
+                log({ action: 'geminiHealth', status: healthResponse.status, data: healthData });
+                
+                if (!healthResponse.ok) {
+                    log({ error: 'Gemini AI service not running. Start with: npm start in gemini-catan-ai folder' });
+                    return;
+                }
+                
+                // Step 2: Create a game if none exists
+                log({ step: 2, action: 'Ensuring game exists...' });
+                const gamesResponse = await fetch('http://localhost:4000/api/games');
+                const games = await gamesResponse.json();
+                
+                let gameId;
+                if (games.length === 0) {
+                    log({ step: '2a', action: 'Creating new game...' });
+                    const createResponse = await fetch('http://localhost:4000/api/games', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ numPlayers: 4 })
+                    });
+                    const newGame = await createResponse.json();
+                    gameId = newGame.id;
+                    log({ action: 'gameCreated', data: newGame });
+                } else {
+                    gameId = games[0].id;
+                    log({ action: 'usingExistingGame', gameId });
+                }
+                
+                // Step 3: Let Gemini AI make a decision
+                log({ step: 3, action: `Gemini AI playing turn for player 0 in game ${gameId}...` });
+                const aiResponse = await fetch(`http://localhost:5100/ai/play-turn/${gameId}/0`, {
+                    method: 'POST'
+                });
+                const aiData = await aiResponse.json();
+                log({ action: 'geminiDecision', status: aiResponse.status, data: aiData });
+                
+                if (aiResponse.ok) {
+                    log({ info: '✅ Gemini AI test successful!' });
+                    if (aiData.decision && aiData.decision.reasoning) {
+                        log({ info: `🧠 AI Reasoning: ${aiData.decision.reasoning}` });
+                    }
+                } else {
+                    log({ error: 'Gemini AI decision failed', data: aiData });
+                }
+                
+            } catch (error) {
+                log({ error: 'Gemini AI test failed', message: error.message });
             }
         }
     </script>
