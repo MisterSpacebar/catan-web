@@ -2,12 +2,54 @@
 const express = require("express");
 const cors = require("cors");
 const { CatanGame } = require("./CatanGame");
+const { getLLMAction, DEFAULT_MODEL } = require("./llmAgent");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const games = new Map(); // gameId -> CatanGame
+
+function performAction(game, type, payload = {}) {
+  switch (type) {
+    case "rollDice":
+      return game.rollDice();
+    case "moveRobber":
+      return game.moveRobber(payload.hexId);
+    case "buildRoad":
+      return game.buildRoad(payload.edgeId, payload.playerId, {
+        free: !!payload.free,
+      });
+    case "buildTown":
+      return game.buildTown(payload.nodeId, payload.playerId);
+    case "buildCity":
+      return game.buildCity(payload.nodeId, payload.playerId);
+    case "harborTrade":
+      return game.tradeHarbor(
+        payload.playerId,
+        payload.giveResource,
+        payload.receiveResource
+      );
+    case "buyDevCard":
+      return game.buyDevCard(payload.playerId);
+    case "playKnight":
+      return game.playKnight(payload.playerId);
+    case "playRoadBuilding":
+      return game.playRoadBuilding(payload.playerId);
+    case "playYearOfPlenty":
+      return game.playYearOfPlenty(
+        payload.playerId,
+        payload.resource1,
+        payload.resource2
+      );
+    case "playMonopoly":
+      return game.playMonopoly(payload.playerId, payload.resource);
+    case "endTurn":
+      return game.endTurn();
+    default:
+      throw new Error("Unknown action type");
+  }
+}
 
 // Health check endpoint
 app.get("/", (req, res) => {
@@ -99,78 +141,55 @@ app.post("/api/games/:id/actions", (req, res) => {
   const { type, payload = {} } = req.body || {};
 
   try {
-    let event;
-
-    switch (type) {
-      case "rollDice":
-        event = game.rollDice();
-        break;
-
-      case "moveRobber":
-        event = game.moveRobber(payload.hexId);
-        break;
-
-      case "buildRoad":
-        event = game.buildRoad(payload.edgeId, payload.playerId, {
-          free: !!payload.free,
-        });
-        break;
-
-      case "buildTown":
-        event = game.buildTown(payload.nodeId, payload.playerId);
-        break;
-
-      case "buildCity":
-        event = game.buildCity(payload.nodeId, payload.playerId);
-        break;
-
-      case "harborTrade":
-        event = game.tradeHarbor(
-          payload.playerId,
-          payload.giveResource,
-          payload.receiveResource
-        );
-        break;
-
-      case "buyDevCard":
-        event = game.buyDevCard(payload.playerId);
-        break;
-
-      case "playKnight":
-        event = game.playKnight(payload.playerId);
-        break;
-
-      case "playRoadBuilding":
-        event = game.playRoadBuilding(payload.playerId);
-        break;
-
-      case "playYearOfPlenty":
-        event = game.playYearOfPlenty(
-          payload.playerId,
-          payload.resource1,
-          payload.resource2
-        );
-        break;
-
-      case "playMonopoly":
-        event = game.playMonopoly(payload.playerId, payload.resource);
-        break;
-
-      case "endTurn":
-        event = game.endTurn();
-        break;
-
-      default:
-        return res.status(400).json({ ok: false, error: "Unknown action type" });
-    }
-
+    const event = performAction(game, type, payload);
     res.json({ ok: true, event, state: game.getState() });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Catan API listening on http://localhost:${PORT}`);
+// Ask the LLM to choose and optionally apply an action for the current player
+app.post("/api/games/:id/llm-turn", async (req, res) => {
+  const game = games.get(req.params.id);
+  if (!game) return res.status(404).json({ error: "Game not found" });
+
+  try {
+    const { model = DEFAULT_MODEL, notes, autoApply = true } = req.body || {};
+    const action = await getLLMAction(game, { model, notes });
+
+    let event = null;
+    if (autoApply !== false) {
+      event = performAction(game, action.action, action.payload || {});
+    }
+
+    if (typeof game._emit === "function") {
+      game._emit({
+        type: "llmDecision",
+        model: action.model,
+        action: action.action,
+        payload: action.payload,
+        reason: action.reason,
+      });
+    }
+
+    res.json({
+      ok: true,
+      action,
+      event,
+      state: game.getState(),
+    });
+  } catch (err) {
+    console.error("LLM turn failed:", err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
+
+const PORT = process.env.PORT || 4000;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Catan API listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { app, games, performAction };
