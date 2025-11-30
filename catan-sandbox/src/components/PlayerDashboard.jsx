@@ -6,6 +6,14 @@ import {
   Cube,
   Play,
   Pause,
+  Crosshair,
+  Path,
+  House,
+  Buildings,
+  ArrowsLeftRight,
+  MapPin,
+  CreditCard,
+  Eye,
   ArrowClockwise,
   SkipForward,
   Trophy,
@@ -70,19 +78,19 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
           <div className="flex items-center gap-2">
             {/* Model icon */}
             <div 
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${color.primary}15` }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              // style={{ backgroundColor: `${color.primary}15` }}
             >
-              <ModelIcon size={14} style={{ color: color.primary }} />
+              <ModelIcon size={16} style={{ color: color.primary }} />
             </div>
             
             {/* Player name and label */}
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium text-slate-200">{player.name}</span>
+                <span className="text-base font-semibold text-slate-200">{player.name}</span>
                 <PlayerLabel playerId={player.id} size="sm" showDot={false} />
               </div>
-              <div className="text-[10px] text-slate-500 capitalize">
+              <div className="text-xs text-slate-500 capitalize">
                 {player.model || "Human"} Player
               </div>
             </div>
@@ -90,9 +98,9 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
 
           {/* VP badge */}
           <div 
-            className="px-2 py-1 rounded-lg text-sm font-bold"
+            className="px-2.5 py-1.5 rounded-xl text-sm font-bold"
             style={{ 
-              backgroundColor: `${color.primary}15`,
+              // backgroundColor: `${color.primary}15`,
               color: color.primary,
             }}
           >
@@ -101,7 +109,7 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
         </div>
 
         {/* Resource summary */}
-        <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center justify-between text-sm text-slate-400">
           <ResourceSummary resources={resources} />
           <span>{totalResources} cards</span>
         </div>
@@ -185,6 +193,67 @@ TurnControls.propTypes = {
 };
 
 /**
+ * Build/interaction controls, reusing the main toolbar actions
+ */
+function ActionTools({ mode, onSetMode, onBuyDevCard, onShowDevCards }) {
+  const tools = [
+    { id: "select", label: "Select", icon: Crosshair, variant: "ghost" },
+    { id: "build-road", label: "Road", icon: Path, variant: "primary" },
+    { id: "build-town", label: "Town", icon: House, variant: "primary" },
+    { id: "build-city", label: "City", icon: Buildings, variant: "primary" },
+    { id: "trade", label: "Trade", icon: ArrowsLeftRight, variant: "secondary" },
+    { id: "move-robber", label: "Robber", icon: MapPin, variant: "danger" },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-1.5">
+        {tools.map((tool) => (
+          <Button
+            key={tool.id}
+            variant={mode === tool.id ? tool.variant : "subtle"}
+            size="sm"
+            className="justify-start rounded-2xl px-3.5"
+            onClick={() => onSetMode?.(tool.id)}
+          >
+            <tool.icon size={16} weight={mode === tool.id ? "fill" : "regular"} />
+            <span className="text-sm">{tool.label}</span>
+          </Button>
+        ))}
+      </div>
+
+      <div className="flex gap-1.5">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1 justify-start rounded-2xl"
+          onClick={onBuyDevCard}
+        >
+          <CreditCard size={16} />
+          Buy Card
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex-1 justify-start rounded-2xl"
+          onClick={onShowDevCards}
+        >
+          <Eye size={16} />
+          View
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+ActionTools.propTypes = {
+  mode: PropTypes.string,
+  onSetMode: PropTypes.func,
+  onBuyDevCard: PropTypes.func,
+  onShowDevCards: PropTypes.func,
+};
+
+/**
  * Main Player Dashboard Component
  */
 export function PlayerDashboard({
@@ -198,6 +267,10 @@ export function PlayerDashboard({
   isPaused,
   onPause,
   onResume,
+  mode,
+  onSetMode,
+  onBuyDevCard,
+  onShowDevCards,
 }) {
   // Calculate rankings
   const rankings = useMemo(() => {
@@ -215,6 +288,16 @@ export function PlayerDashboard({
   const nextIndex = (currentIndex + 1) % players.length;
   const nextTurnPlayer = players[nextIndex];
 
+  // Build full queue of upcoming turns (excluding the active player)
+  const turnQueue = useMemo(() => {
+    if (!players?.length) return [];
+    const activeIndex = currentIndex >= 0 ? currentIndex : 0;
+    return Array.from({ length: players.length - 1 }, (_, offset) => {
+      const idx = (activeIndex + offset + 1) % players.length;
+      return players[idx];
+    });
+  }, [players, currentIndex]);
+
   // Get selected player object
   const selectedPlayer = typeof currentPlayer === 'number' 
     ? players.find(p => p.id === currentPlayer) 
@@ -224,12 +307,12 @@ export function PlayerDashboard({
     <Card className="h-full overflow-hidden">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users size={16} className="text-indigo-400" />
-          <span className="text-sm">Game Overview</span>
+          <Users size={18} className="text-indigo-400" />
+          <span className="text-base font-semibold">Game Overview</span>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto space-y-2" style={{ maxHeight: "calc(100% - 56px)" }}>
+      <CardContent className="overflow-y-auto space-y-3 text-sm leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
         {/* Player Information */}
         <Collapsible
           title="Player Information"
@@ -259,25 +342,43 @@ export function PlayerDashboard({
         >
           <div className="space-y-3">
             {/* Current Turn */}
-            <div className="p-2.5 rounded-lg bg-black/20">
-              <div className="text-[10px] text-slate-500 mb-1.5">Current Turn</div>
+            <div className="p-3 rounded-xl bg-slate-900/35 ring-1 ring-slate-800/60">
+              <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">Current Turn</div>
               <PlayerTurnChip player={currentTurnPlayer} isActive={true} size="md" />
             </div>
 
             {/* Next Turn */}
-            <div className="p-2.5 rounded-lg bg-black/20">
-              <div className="text-[10px] text-slate-500 mb-1.5">Next Turn</div>
+            <div className="p-3 rounded-xl bg-slate-900/35 ring-1 ring-slate-800/60">
+              <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">Next Turn</div>
               <PlayerTurnChip player={nextTurnPlayer} isActive={false} size="md" />
             </div>
 
+            {/* Turn Queue */}
+            {turnQueue.length > 0 && (
+              <div className="p-3 rounded-xl bg-slate-900/35 ring-1 ring-slate-800/60">
+                <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">Upcoming Order</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {turnQueue.map((player) => (
+                    <PlayerTurnChip
+                      key={player.id}
+                      player={player}
+                      isActive={false}
+                      size="sm"
+                      className="bg-slate-900/60"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Dice Display */}
             {lastRoll && (
-              <div className="p-2.5 rounded-lg bg-black/20">
-                <div className="text-[10px] text-slate-500 mb-1.5">Last Roll</div>
+              <div className="p-3 rounded-xl bg-slate-900/35 ring-1 ring-slate-800/60">
+                <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">Last Roll</div>
                 <div className="flex items-center gap-2">
                   <DiceDisplay value={lastRoll.die1} />
                   <DiceDisplay value={lastRoll.die2} />
-                  <div className="ml-2 text-xl font-bold text-slate-300">
+                  <div className="ml-2 text-2xl font-bold text-slate-200">
                     = {lastRoll.die1 + lastRoll.die2}
                   </div>
                 </div>
@@ -285,14 +386,22 @@ export function PlayerDashboard({
             )}
 
             {/* Controls */}
-            <div className="pt-1">
-              <div className="text-[10px] text-slate-500 mb-1.5">Controls</div>
+            <div className="p-3 rounded-xl bg-slate-900/35 ring-1 ring-slate-800/60 space-y-3">
+              <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Controls</div>
               <TurnControls
                 onRoll={onRollDice}
                 onEndTurn={onEndTurn || (() => {})}
                 isPaused={isPaused}
                 onPause={onPause}
                 onResume={onResume}
+              />
+              <div className="pt-1 border-t border-slate-800/60" />
+              <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Build & Actions</div>
+              <ActionTools
+                mode={mode}
+                onSetMode={onSetMode}
+                onBuyDevCard={onBuyDevCard}
+                onShowDevCards={onShowDevCards}
               />
             </div>
           </div>
@@ -367,6 +476,10 @@ PlayerDashboard.propTypes = {
   isPaused: PropTypes.bool,
   onPause: PropTypes.func,
   onResume: PropTypes.func,
+  mode: PropTypes.string,
+  onSetMode: PropTypes.func,
+  onBuyDevCard: PropTypes.func,
+  onShowDevCards: PropTypes.func,
 };
 
 export default PlayerDashboard;

@@ -7,8 +7,8 @@ const buttonVariants = cva(
   // Base styles - rounded rectangles with drop shadows for clickable feel
   [
     "relative inline-flex items-center justify-center gap-1.5",
-    "whitespace-nowrap rounded-lg",
-    "text-xs font-medium",
+    "whitespace-nowrap rounded-xl",
+    "text-sm font-semibold",
     "transition-all duration-150 ease-out",
     // Focus state - subtle glow
     "focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50",
@@ -65,19 +65,20 @@ const buttonVariants = cva(
           "hover:bg-white/[0.03] hover:text-white hover:ring-slate-600/50",
         ],
         subtle: [
-          "bg-slate-900/40 text-slate-500",
-          "hover:bg-slate-800/50 hover:text-slate-300",
+          "bg-slate-900/40 text-slate-400",
+          "hover:bg-slate-800/50 hover:text-slate-200",
+          "shadow-inner shadow-black/10",
         ],
       },
       size: {
-        default: "h-9 px-4 py-2",
-        xs: "h-7 px-2.5 text-[11px] gap-1",
-        sm: "h-8 px-3 text-[11px] gap-1",
-        lg: "h-10 px-5 text-sm rounded-xl",
-        xl: "h-11 px-6 text-sm rounded-xl",
-        icon: "h-9 w-9 p-0",
-        iconSm: "h-7 w-7 p-0",
-        iconLg: "h-10 w-10 p-0 rounded-xl",
+        default: "h-10 px-4 py-2.5",
+        xs: "h-8 px-3 text-xs gap-1",
+        sm: "h-9 px-3.5 text-[13px] gap-1",
+        lg: "h-11 px-5 text-base rounded-2xl",
+        xl: "h-12 px-6 text-base rounded-2xl",
+        icon: "h-10 w-10 p-0",
+        iconSm: "h-8 w-8 p-0",
+        iconLg: "h-11 w-11 p-0 rounded-2xl",
       },
     },
     defaultVariants: {

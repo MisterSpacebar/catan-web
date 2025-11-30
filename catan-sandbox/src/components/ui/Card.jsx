@@ -6,24 +6,24 @@ const Card = React.forwardRef(({ className, children, variant = "default", glow,
   <div
     ref={ref}
     className={cn(
-      "relative rounded-xl overflow-hidden",
+      "relative rounded-2xl overflow-hidden",
       "transition-all duration-200",
       // Variants
       variant === "default" && [
         "bg-slate-900/80 backdrop-blur-lg",
-        "shadow-xl shadow-black/20",
+        "shadow-2xl shadow-black/35",
       ],
       variant === "elevated" && [
         "bg-slate-800/60 backdrop-blur-lg",
-        "shadow-xl shadow-black/30",
+        "shadow-2xl shadow-black/45",
       ],
       variant === "glass" && [
         "bg-white/[0.04] backdrop-blur-xl",
-        "shadow-xl shadow-black/15",
+        "shadow-xl shadow-black/25",
       ],
       variant === "surface" && [
         "bg-slate-900/50",
-        "shadow-md shadow-black/10",
+        "shadow-lg shadow-black/25",
       ],
       // Interactive
       interactive && "cursor-pointer hover:-translate-y-0.5 hover:shadow-2xl",
@@ -33,9 +33,6 @@ const Card = React.forwardRef(({ className, children, variant = "default", glow,
     )}
     {...props}
   >
-    {/* Top highlight */}
-    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-    
     <div className="relative">
       {children}
     </div>
@@ -71,9 +68,9 @@ const CardTitle = React.forwardRef(({ className, size = "default", ...props }, r
     ref={ref}
     className={cn(
       "font-semibold text-slate-200",
-      size === "default" && "text-base",
-      size === "sm" && "text-sm",
-      size === "lg" && "text-lg",
+      size === "default" && "text-lg",
+      size === "sm" && "text-base",
+      size === "lg" && "text-xl",
       className
     )}
     {...props}

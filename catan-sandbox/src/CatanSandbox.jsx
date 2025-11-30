@@ -2,14 +2,8 @@ import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Crosshair,
-  Path,
-  House,
-  Buildings,
-  MapPin,
   ArrowsLeftRight,
   CreditCard,
-  Eye,
   ArrowCounterClockwise,
   Shuffle,
   Play,
@@ -80,52 +74,6 @@ function useBoard() {
 
   return { board, setBoard, rerandomize, bbox };
 }
-
-// ============================================
-// Toolbar Component
-// ============================================
-function Toolbar({ mode, setMode, onBuyDevCard, onShowDevCards }) {
-  const tools = [
-    { id: "select", label: "Select", icon: Crosshair, variant: "ghost" },
-    { id: "build-road", label: "Road", icon: Path, variant: "primary" },
-    { id: "build-town", label: "Town", icon: House, variant: "primary" },
-    { id: "build-city", label: "City", icon: Buildings, variant: "primary" },
-    { id: "trade", label: "Trade", icon: ArrowsLeftRight, variant: "secondary" },
-    { id: "move-robber", label: "Robber", icon: MapPin, variant: "danger" },
-  ];
-
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {tools.map((tool) => (
-        <Button
-          key={tool.id}
-          variant={mode === tool.id ? tool.variant : "ghost"}
-          size="sm"
-          onClick={() => setMode(tool.id)}
-        >
-          <tool.icon size={14} weight={mode === tool.id ? "fill" : "regular"} />
-          {tool.label}
-        </Button>
-      ))}
-      <div className="w-px h-5 bg-slate-700/40 mx-1" />
-      <Button variant="secondary" size="sm" onClick={onBuyDevCard}>
-        <CreditCard size={14} />
-        Card
-      </Button>
-      <Button variant="ghost" size="sm" onClick={onShowDevCards}>
-        <Eye size={14} />
-        View
-      </Button>
-    </div>
-  );
-}
-
-Toolbar.propTypes = {
-  mode: PropTypes.string.isRequired,
-  setMode: PropTypes.func.isRequired,
-  onBuyDevCard: PropTypes.func.isRequired,
-  onShowDevCards: PropTypes.func.isRequired,
-};
 
 // ============================================
 // Trade Panel Component
@@ -337,10 +285,10 @@ function CollapsibleSidebar({ collapsed, onToggle, side, children, icon: Icon, t
     <motion.aside
       animate={{ width: collapsed ? 48 : 280 }}
       transition={{ type: "spring", stiffness: 300, damping: 35 }}
-      className="h-full flex-shrink-0 relative"
+      className="h-full flex-shrink-0 relative drop-shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
     >
       {collapsed ? (
-        <div className="h-full rounded-xl bg-slate-900/50 backdrop-blur-lg flex flex-col items-center py-3 gap-2">
+        <div className="h-full rounded-2xl bg-slate-950/60 ring-1 ring-slate-800/70 backdrop-blur-lg flex flex-col items-center py-3 gap-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
           <button
             onClick={onToggle}
             className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
@@ -352,8 +300,14 @@ function CollapsibleSidebar({ collapsed, onToggle, side, children, icon: Icon, t
           <span className="text-[10px] text-slate-600 [writing-mode:vertical-rl] rotate-180">{title}</span>
         </div>
       ) : (
-        <div className="h-full relative">
+        <div className="h-full relative rounded-2xl bg-slate-950/60 ring-1 ring-slate-800/70 shadow-[0_18px_50px_rgba(0,0,0,0.35)] overflow-hidden">
           {children}
+          <div
+            className={cn(
+              "absolute top-6 bottom-6 w-[2px] bg-gradient-to-b from-white/10 via-white/5 to-transparent rounded-full shadow-[0_0_18px_rgba(0,0,0,0.35)]",
+              isLeft ? "right-0" : "left-0"
+            )}
+          />
           {/* Toggle button */}
           <button
             onClick={onToggle}
@@ -398,15 +352,15 @@ function RulesSidebarContent() {
   ];
 
   return (
-    <Card className="h-full overflow-hidden">
+    <Card className="h-full overflow-hidden shadow-2xl shadow-black/35">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Book size={16} className="text-emerald-400" />
-          <span className="text-sm">Quick Rules</span>
+          <span className="text-base font-semibold">Quick Rules</span>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto space-y-2" style={{ maxHeight: "calc(100% - 56px)" }}>
+      <CardContent className="overflow-y-auto space-y-3 text-sm leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
         {/* How to play - Collapsible */}
         <Collapsible 
           title="How to Play" 
@@ -416,13 +370,13 @@ function RulesSidebarContent() {
         >
           <div className="space-y-2">
             {steps.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-2.5 p-2 rounded-lg bg-black/20">
-                <span className="flex-shrink-0 w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">
+              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-bold flex items-center justify-center">
                   {idx + 1})
                 </span>
                 <div>
-                  <div className="text-xs text-slate-300 font-medium">{step.title}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">{step.desc}</div>
+                  <div className="text-sm text-slate-100 font-semibold">{step.title}</div>
+                  <div className="text-[13px] text-slate-400 mt-0.5">{step.desc}</div>
                 </div>
               </div>
             ))}
@@ -438,9 +392,9 @@ function RulesSidebarContent() {
         >
           <div className="grid grid-cols-2 gap-1.5">
             {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
-              <div key={key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-black/20">
+              <div key={key} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
                 <span className="text-lg">{resourceEmoji(key)}</span>
-                <span className="text-xs text-slate-400 capitalize">{key}</span>
+                <span className="text-sm text-slate-200 capitalize font-medium">{key}</span>
               </div>
             ))}
           </div>
@@ -455,13 +409,16 @@ function RulesSidebarContent() {
         >
           <div className="space-y-1.5">
             {buildCosts.map((row) => (
-              <div key={row.name} className="flex items-center justify-between p-2 rounded-lg bg-black/20">
-                <span className="text-xs font-medium text-slate-400">{row.name}</span>
+              <div key={row.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/40 ring-1 ring-slate-800/60">
+                <span className="text-sm font-semibold text-slate-100">{row.name}</span>
                 <div className="flex items-center gap-1">
                   {row.cost.map((c, i) => (
-                    <div key={`${row.name}-${c.resource}-${i}`} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-800/60">
+                    <div
+                      key={`${row.name}-${c.resource}-${i}`}
+                      className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800/70"
+                    >
                       <span className="text-sm">{resourceEmoji(c.resource)}</span>
-                      <span className="text-[11px] font-medium text-slate-400">{c.amount}</span>
+                      <span className="text-xs font-semibold text-slate-200">{c.amount}</span>
                     </div>
                   ))}
                 </div>
@@ -1133,20 +1090,11 @@ export default function CatanSandbox() {
               {/* Logo & Title */}
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                  <Sparkle size={14} weight="fill" className="text-white" />
                 </div>
-                <span className="text-sm font-medium text-slate-300">Catan</span>
+                <span className="text-sm font-medium text-slate-300">Settlers of Catan</span>
               </div>
 
               {/* Toolbar - only show on game view */}
-              {activeView === "game" && (
-                <Toolbar
-                  mode={mode}
-                  setMode={setMode}
-                  onBuyDevCard={buyDevCard}
-                  onShowDevCards={() => setShowDevCardPanel(true)}
-                />
-              )}
 
               {/* Right section */}
               <div className="flex items-center gap-2">
@@ -1238,6 +1186,10 @@ export default function CatanSandbox() {
             onRollDice={onRollDice}
             onSelectPlayer={(player) => setCurrent(player.id)}
             onEndTurn={endTurn}
+            mode={mode}
+            onSetMode={setMode}
+            onBuyDevCard={buyDevCard}
+            onShowDevCards={() => setShowDevCardPanel(true)}
           />
         </CollapsibleSidebar>
       </div>

@@ -122,20 +122,21 @@ export function PlayerCard({ player, isSelected = false, onClick, children, clas
   return (
     <div
       className={cn(
-        "relative rounded-xl overflow-hidden transition-all duration-200 cursor-pointer",
-        "hover:translate-x-0.5",
-        isSelected && "shadow-lg",
+        "relative rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer",
+        "hover:-translate-y-0.5",
+        isSelected && "shadow-xl shadow-black/35",
         className
       )}
       style={{
         backgroundColor: isSelected ? `${color.primary}10` : "rgba(15, 23, 42, 0.6)",
-        border: `1px solid ${isSelected ? color.border : "transparent"}`,
+        border: `1px solid ${isSelected ? color.border : "rgba(148, 163, 184, 0.08)"}`,
+        boxShadow: isSelected ? `0 0 18px ${color.glow}` : "0 12px 30px rgba(0,0,0,0.25)",
       }}
       onClick={onClick}
     >
       {/* Left accent bar */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1"
+        className="absolute left-0 top-0 bottom-0 w-1.5"
         style={{ backgroundColor: color.primary }}
       />
       
@@ -155,4 +156,3 @@ PlayerCard.propTypes = {
 };
 
 export default { PlayerDot, PlayerLabel, PlayerTurnChip, PlayerCard };
-
