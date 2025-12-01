@@ -25,7 +25,8 @@ export function buildStrategyPrompt({ phase, personality, stateDescription, lega
   const phaseGuidance = {
     early: "Focus on securing strong settlement spots and diverse resource production. Prioritize expansion over upgrades.",
     mid: "Focus on upgrading settlements to cities for better resource generation. Consider building toward Longest Road.",
-    end: "Focus on racing to 10 VP and blocking the leading opponent. Every decision is critical."
+    end: "Focus on racing to 10 VP and blocking the leading opponent. Every decision is critical.",
+    setup: "Place your initial settlements on high-value intersections (6,8 numbers) with diverse resources. Place roads to secure future expansion."
   };
 
   const personalityGuidance = {
@@ -33,6 +34,19 @@ export function buildStrategyPrompt({ phase, personality, stateDescription, lega
     balanced: "Play a balanced strategy: weigh both your growth opportunities and opponent threats equally.",
     defensive: "Play defensively: secure consistent resource production and avoid risky moves that could backfire."
   };
+
+  // Check if dice rolling is available - this indicates turn start
+  const needsToRoll = legalActions.some(action => action.type === "rollDice");
+  const canMoveRobber = legalActions.some(action => action.type === "moveRobber");
+
+  let turnPhaseGuidance = "";
+  if (needsToRoll) {
+    turnPhaseGuidance = "\n🎲 TURN START: You must roll the dice first before taking any other actions.";
+  } else if (canMoveRobber) {
+    turnPhaseGuidance = "\n🔴 ROBBER PHASE: You rolled a 7! You must move the robber before continuing your turn.";
+  } else {
+    turnPhaseGuidance = "\n✨ ACTION PHASE: You can now build, trade, or end your turn.";
+  }
 
   const actionList = legalActions
     .map((action, index) => `${index + 1}. ${formatActionForPrompt(action)}`)
@@ -43,7 +57,7 @@ export function buildStrategyPrompt({ phase, personality, stateDescription, lega
 CURRENT SITUATION:
 Game Phase: ${phase.toUpperCase()}
 Strategy Focus: ${phaseGuidance[phase] || ""}
-Playing Style: ${personalityGuidance[personality] || ""}
+Playing Style: ${personalityGuidance[personality] || ""}${turnPhaseGuidance}
 
 DETAILED GAME STATE:
 ${stateDescription}

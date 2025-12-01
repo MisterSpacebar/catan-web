@@ -116,12 +116,51 @@ export function computeLegalActions(gameState, playerId) {
     return Object.keys(cost).every((res) => (resources[res] || 0) >= cost[res]);
   }
 
-  // 1. Must roll first
-  if (!player.hasRolled) {
-    return [{ type: "rollDice", payload: null }];
+  // 1. Check game phase and enforce proper turn order
+  
+  // During setup phase, different rules apply
+  if (gameState?.phase === 'setup' || gameState?.currentPhase === 'setup' || isInitialPlacement(gameState)) {
+    console.log("In setup phase - allowing placement actions");
+    // In setup, players place settlements and roads without rolling
+    const validNodes = getValidTownPlacements(gameState, playerId);
+    const validEdges = getValidRoadPlacements(gameState, playerId);
+    
+    if (validNodes.length > 0) {
+      validNodes.slice(0, 2).forEach((node) => {
+        actions.push({
+          type: "buildTown",
+          payload: { nodeId: node.id, playerId }
+        });
+      });
+    }
+    
+    if (validEdges.length > 0) {
+      validEdges.slice(0, 2).forEach((edge) => {
+        actions.push({
+          type: "buildRoad", 
+          payload: { edgeId: edge.id, playerId, free: true }
+        });
+      });
+    }
+    
+    actions.push({ type: "endTurn", payload: null });
+    return actions;
   }
 
-  // 2. Settlement / town (with proper validation)
+  // 2. Must roll dice first in regular play (unless already rolled this turn)
+  const needsToRoll = !player.hasRolled && 
+                      !gameState?.diceRolledThisTurn && 
+                      gameState?.phase !== 'robber' &&
+                      gameState?.currentPhase !== 'robber';
+                      
+  if (needsToRoll) {
+    console.log("Player must roll dice first");
+    return [{ type: "rollDice", payload: null }];
+  }
+  
+  console.log("Dice already rolled this turn, allowing other actions");
+
+  // 3. Settlement / town (with proper validation)
   if (canAfford({ wood: 1, brick: 1, wheat: 1, sheep: 1 })) {
     const validNodes = getValidTownPlacements(gameState, playerId);
     
@@ -133,7 +172,7 @@ export function computeLegalActions(gameState, playerId) {
     });
   }
 
-  // 3. Road (with proper validation)
+  // 4. Road (with proper validation)
   if (canAfford({ wood: 1, brick: 1 })) {
     const validEdges = getValidRoadPlacements(gameState, playerId);
     
@@ -145,7 +184,7 @@ export function computeLegalActions(gameState, playerId) {
     });
   }
 
-  // 4. City (upgrade from town)
+  // 5. City (upgrade from town)
   if (canAfford({ wheat: 2, ore: 3 })) {
     const playerTowns = (gameState?.board?.nodes || [])
       .filter(
@@ -164,7 +203,7 @@ export function computeLegalActions(gameState, playerId) {
     });
   }
 
-  // 5. Harbor trades (simplified 4:1 trades)
+  // 6. Harbor trades (simplified 4:1 trades)
   for (const res of ["wood", "brick", "wheat", "sheep", "ore"]) {
     if ((resources[res] || 0) >= 4) {
       const others = ["wood", "brick", "wheat", "sheep", "ore"].filter((r) => r !== res);
@@ -178,7 +217,7 @@ export function computeLegalActions(gameState, playerId) {
     }
   }
 
-  // 6. Buy development card
+  // 7. Buy development card
   if (canAfford({ sheep: 1, wheat: 1, ore: 1 })) {
     actions.push({
       type: "buyDevCard",
@@ -186,11 +225,26 @@ export function computeLegalActions(gameState, playerId) {
     });
   }
 
-  // 7. Move robber (if rolled 7 or have knight)
-  if (gameState?.lastRoll?.total === 7 || (player.devCards && player.devCards.some(c => c.type === 'knight' && c.canPlay))) {
-    // Add one robber move option (simplified)
-    const hexes = gameState?.board?.tiles || [];
-    const nonRobberHex = hexes.find((tile, index) => !tile.hasRobber && tile.resource !== 'water');
+  // 8. Move robber (ONLY in specific situations)
+  // Check if we're in a robber-movement phase or have rolled 7 this turn
+  const shouldMoveRobber = 
+    gameState?.phase === 'robber' ||  // Game is in robber phase
+    gameState?.currentPhase === 'robber' ||  // Alternative phase name
+    gameState?.mustMoveRobber === true ||  // Explicit flag
+    (gameState?.dice && Array.isArray(gameState.dice) && 
+     gameState.dice.length === 2 && 
+     (gameState.dice[0] + gameState.dice[1]) === 7 && 
+     gameState?.robberMovedThisTurn !== true) ||  // Just rolled 7 and haven't moved yet
+    (gameState?.lastDiceRoll === 7 && gameState?.robberMovedThisTurn !== true);  // Alternative dice tracking
+
+  if (shouldMoveRobber) {
+    console.log("Robber movement required - dice total was 7 or in robber phase");
+    const hexes = gameState?.board?.tiles || gameState?.board?.hexes || [];
+    const nonRobberHex = hexes.find((tile, index) => 
+      !tile.hasRobber && 
+      tile.resource !== 'water' && 
+      tile.resource !== null
+    );
     if (nonRobberHex) {
       const hexIndex = hexes.indexOf(nonRobberHex);
       actions.push({
@@ -198,9 +252,11 @@ export function computeLegalActions(gameState, playerId) {
         payload: { hexId: hexIndex }
       });
     }
+  } else {
+    console.log("No robber movement needed - not rolled 7 or already moved");
   }
 
-  // 8. Always can end turn
+  // 9. Always can end turn
   actions.push({ type: "endTurn", payload: null });
 
   // Safety check: ensure we always have at least one action

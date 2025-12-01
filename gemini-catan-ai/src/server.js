@@ -158,6 +158,117 @@ app.post("/ai/play-turn/:gameId/:playerId", async (req, res) => {
   }
 });
 
+// Endpoint for multi-AI battle interface
+app.post("/play-turn", async (req, res) => {
+  const { gameId, playerId, gameState } = req.body;
+  console.log(`Received play-turn for game ${gameId} player ${playerId}`);
+
+  try {
+    // Use provided game state or fetch it
+    let currentGameState = gameState;
+    if (!currentGameState) {
+      const stateResp = await axios.get(`${CATAN_API_BASE}/api/games/${gameId}`);
+      currentGameState = stateResp.data;
+    }
+
+    const decision = await agent.decideAction(currentGameState, Number(playerId));
+    console.log("Gemini decision", decision);
+
+    let actionPayload = decision.action || {};
+    let catanResp;
+    let finalDecision = decision;
+    let attemptCount = 0;
+    const maxAttempts = 5; // Increase attempts for better reliability
+    
+    // Always ensure we try to end turn if no other actions work
+    const { computeLegalActions } = await import('./legal-actions.js');
+    let legalActions = computeLegalActions(currentGameState, Number(playerId));
+    
+    // If no legal actions except endTurn, force endTurn
+    const nonEndTurnActions = legalActions.filter(action => action.type !== 'endTurn');
+    if (nonEndTurnActions.length === 0) {
+      actionPayload = { type: 'endTurn', playerId: Number(playerId) };
+      console.log("No legal actions available, forcing endTurn");
+    }
+    
+    while (!catanResp && attemptCount < maxAttempts) {
+      attemptCount++;
+      
+      try {
+        console.log(`Attempt ${attemptCount}: Trying action:`, actionPayload.type);
+        
+        // Try to execute the action
+        catanResp = await axios.post(
+          `${CATAN_API_BASE}/api/games/${gameId}/actions`,
+          actionPayload,
+          { 
+            headers: { "Content-Type": "application/json" },
+            timeout: 5000 // Add timeout
+          }
+        );
+        
+        console.log("Action succeeded:", actionPayload.type);
+        break;
+        
+      } catch (actionError) {
+        console.log(`Action ${actionPayload.type} failed:`, actionError?.response?.data?.error || actionError.message);
+        
+        // If we've tried several times, force endTurn as last resort
+        if (attemptCount >= maxAttempts - 1) {
+          try {
+            console.log("Forcing endTurn as final fallback");
+            catanResp = await axios.post(
+              `${CATAN_API_BASE}/api/games/${gameId}/actions`,
+              { type: 'endTurn', playerId: Number(playerId) },
+              { headers: { "Content-Type": "application/json" } }
+            );
+            
+            finalDecision = {
+              reasoning: `All actions failed, forced turn end. Original error: ${actionError?.response?.data?.error || actionError.message}`,
+              action: { type: 'endTurn', playerId: Number(playerId) }
+            };
+            break;
+          } catch (endTurnError) {
+            console.error("Even endTurn failed:", endTurnError?.response?.data || endTurnError.message);
+            // At this point, just return the decision without executing
+            finalDecision = {
+              reasoning: `Critical error: Cannot execute any actions including endTurn. Error: ${endTurnError?.response?.data?.error || endTurnError.message}`,
+              action: { type: 'pass', playerId: Number(playerId) }
+            };
+            return res.json(finalDecision);
+          }
+        } else {
+          // Try a different legal action
+          const freshStateResp = await axios.get(`${CATAN_API_BASE}/api/games/${gameId}`);
+          const freshGameState = freshStateResp.data;
+          legalActions = computeLegalActions(freshGameState, Number(playerId));
+          
+          // Filter out failed actions and pick next one
+          const nextAction = legalActions.find(action => 
+            action.type !== actionPayload.type && action.type !== 'pass'
+          ) || { type: 'endTurn', playerId: Number(playerId) };
+          
+          actionPayload = nextAction;
+          
+          finalDecision = {
+            reasoning: `Retrying with different action: ${nextAction.type}`,
+            action: nextAction
+          };
+        }
+      }
+    }
+
+    res.json(finalDecision);
+  } catch (err) {
+    console.error("/play-turn error", err);
+    // Always return a valid response, even on error
+    res.json({
+      reasoning: `Error occurred: ${err?.message || err}. Passing turn.`,
+      action: { type: 'endTurn', playerId: Number(playerId) }
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Gemini Catan AI service listening on port ${PORT}`);
   console.log(`AI server listening on http://localhost:${PORT}`);

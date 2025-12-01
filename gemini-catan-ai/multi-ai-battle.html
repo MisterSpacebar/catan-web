@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-AI Catan Battle</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button { 
+            padding: 12px 24px; 
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .btn-primary { background: #4CAF50; color: white; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-info { background: #2196F3; color: white; }
+        .btn-warning { background: #FF9800; color: white; }
+        
+        .game-status {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .player-card {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid;
+        }
+        
+        .player-0 { border-color: #ff4444; }
+        .player-1 { border-color: #4444ff; }
+        .player-2 { border-color: #44ff44; }
+        .player-3 { border-color: #ffff44; }
+        
+        .log-container {
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .log-entry {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .turn-counter {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .winner-banner {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Multi-AI Catan Battle Arena</h1>
+        <p>Watch Gemini AI agents compete against each other in real-time!</p>
+        
+        <div class="controls">
+            <button class="btn-primary" onclick="startNewBattle()">🚀 Start New Battle</button>
+            <button class="btn-info" onclick="playNextTurn()" id="nextTurnBtn" disabled>⏭️ Next Turn</button>
+            <button class="btn-warning" onclick="autoPlay()" id="autoPlayBtn" disabled>🔄 Auto Play</button>
+            <button class="btn-danger" onclick="stopBattle()">⏹️ Stop Battle</button>
+        </div>
+        
+        <div class="game-status" id="gameStatus">
+            <h3>🎮 Game Status</h3>
+            <p>Click "Start New Battle" to begin!</p>
+        </div>
+        
+        <div class="turn-counter" id="turnCounter">Turn: 0</div>
+        
+        <div class="players-grid" id="playersGrid">
+            <!-- Player cards will be populated here -->
+        </div>
+        
+        <div class="log-container" id="logContainer">
+            <h4>📝 Battle Log</h4>
+            <div id="battleLog">
+                <div class="log-entry">Battle arena ready! Start a new game to begin.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentGameId = null;
+        let gameState = null;
+        let turnCount = 0;
+        let isAutoPlaying = false;
+        let battleInterval = null;
+
+        const CATAN_API = 'http://localhost:4000';
+        const GEMINI_AI_API = 'http://localhost:5100';
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('battleLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        async function startNewBattle() {
+            try {
+                log('🎮 Creating new 4-player AI battle...', 'info');
+                
+                const response = await fetch(`${CATAN_API}/api/games`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ numPlayers: 4 })
+                });
+                
+                const game = await response.json();
+                currentGameId = game.id;
+                gameState = game;
+                turnCount = 0;
+                
+                log(`✅ Battle arena created! Game ID: ${currentGameId}`, 'success');
+                log(`🏠 Initial settlements placed: ${countBuildings(game)} buildings on board`, 'info');
+                
+                updateGameStatus();
+                updatePlayersDisplay();
+                
+                document.getElementById('nextTurnBtn').disabled = false;
+                document.getElementById('autoPlayBtn').disabled = false;
+                
+            } catch (error) {
+                log(`❌ Failed to create battle: ${error.message}`, 'error');
+            }
+        }
+
+        async function playNextTurn() {
+            if (!currentGameId) {
+                log('❌ No active battle! Start a new battle first.', 'error');
+                return;
+            }
+
+            try {
+                // Get current game state
+                const stateResponse = await fetch(`${CATAN_API}/api/games/${currentGameId}`);
+                gameState = await stateResponse.json();
+                
+                const currentPlayer = gameState.current;
+                turnCount++;
+                
+                log(`🎯 Turn ${turnCount}: Player ${currentPlayer}'s turn`, 'info');
+                
+                // Make AI decision
+                const aiResponse = await fetch(`${GEMINI_AI_API}/ai/play-turn/${currentGameId}/${currentPlayer}`, {
+                    method: 'POST'
+                });
+                
+                if (!aiResponse.ok) {
+                    throw new Error(`AI request failed: ${aiResponse.status}`);
+                }
+                
+                const aiResult = await aiResponse.json();
+                const action = aiResult.decision?.action?.type || 'unknown';
+                const reasoning = aiResult.decision?.reasoning || 'No reasoning provided';
+                
+                log(`🤖 Player ${currentPlayer} chose: ${action}`, 'success');
+                log(`💭 Reasoning: ${reasoning.substring(0, 100)}...`, 'info');
+                
+                // Update display
+                await updateGameState();
+                updateGameStatus();
+                updatePlayersDisplay();
+                
+                // Check for winner
+                const winner = checkForWinner();
+                if (winner) {
+                    log(`🎉 WINNER: Player ${winner.id} with ${winner.vp} Victory Points!`, 'winner');
+                    showWinner(winner);
+                    stopBattle();
+                }
+                
+            } catch (error) {
+                log(`❌ Turn failed: ${error.message}`, 'error');
+                // Try to continue the battle even if one turn fails
+            }
+        }
+
+        async function updateGameState() {
+            if (!currentGameId) return;
+            
+            try {
+                const response = await fetch(`${CATAN_API}/api/games/${currentGameId}`);
+                gameState = await response.json();
+            } catch (error) {
+                log(`❌ Failed to update game state: ${error.message}`, 'error');
+            }
+        }
+
+        function updateGameStatus() {
+            const statusDiv = document.getElementById('gameStatus');
+            const turnCounter = document.getElementById('turnCounter');
+            
+            if (!gameState) {
+                statusDiv.innerHTML = '<h3>🎮 Game Status</h3><p>No active game</p>';
+                turnCounter.textContent = 'Turn: 0';
+                return;
+            }
+
+            const buildings = countBuildings(gameState);
+            const currentPlayer = gameState.current;
+            
+            statusDiv.innerHTML = `
+                <h3>🎮 Game Status</h3>
+                <p><strong>Game ID:</strong> ${currentGameId}</p>
+                <p><strong>Current Player:</strong> Player ${currentPlayer}</p>
+                <p><strong>Buildings on Board:</strong> ${buildings}</p>
+            `;
+            
+            turnCounter.textContent = `Turn: ${turnCount}`;
+        }
+
+        function updatePlayersDisplay() {
+            const playersGrid = document.getElementById('playersGrid');
+            
+            if (!gameState || !gameState.players) {
+                playersGrid.innerHTML = '<p>No players data available</p>';
+                return;
+            }
+
+            playersGrid.innerHTML = gameState.players.map(player => `
+                <div class="player-card player-${player.id}">
+                    <h4>🤖 Player ${player.id}</h4>
+                    <p><strong>Victory Points:</strong> ${player.vp || 0}</p>
+                    <p><strong>Resources:</strong></p>
+                    <ul>
+                        <li>Wood: ${player.resources?.wood || 0}</li>
+                        <li>Brick: ${player.resources?.brick || 0}</li>
+                        <li>Wheat: ${player.resources?.wheat || 0}</li>
+                        <li>Sheep: ${player.resources?.sheep || 0}</li>
+                        <li>Ore: ${player.resources?.ore || 0}</li>
+                    </ul>
+                </div>
+            `).join('');
+        }
+
+        function countBuildings(game) {
+            if (!game?.board?.nodes) return 0;
+            return game.board.nodes.filter(node => node.building).length;
+        }
+
+        function checkForWinner() {
+            if (!gameState?.players) return null;
+            return gameState.players.find(player => (player.vp || 0) >= 10);
+        }
+
+        function showWinner(winner) {
+            const container = document.querySelector('.container');
+            const banner = document.createElement('div');
+            banner.className = 'winner-banner';
+            banner.innerHTML = `🏆 VICTORY! Player ${winner.id} wins with ${winner.vp} Victory Points! 🏆`;
+            container.insertBefore(banner, container.firstChild.nextSibling);
+        }
+
+        async function autoPlay() {
+            if (isAutoPlaying) return;
+            
+            isAutoPlaying = true;
+            document.getElementById('autoPlayBtn').textContent = '⏸️ Pause';
+            log('🔄 Auto-play enabled! Watching AI battle...', 'info');
+            
+            battleInterval = setInterval(async () => {
+                if (!isAutoPlaying) return;
+                
+                const winner = checkForWinner();
+                if (winner || turnCount > 100) { // Safety limit
+                    stopBattle();
+                    return;
+                }
+                
+                await playNextTurn();
+                
+                // Random delay between 1-3 seconds to make it more interesting
+                const delay = 1000 + Math.random() * 2000;
+                setTimeout(() => {}, delay);
+                
+            }, 3000); // 3 second intervals
+        }
+
+        function stopBattle() {
+            isAutoPlaying = false;
+            if (battleInterval) {
+                clearInterval(battleInterval);
+                battleInterval = null;
+            }
+            
+            document.getElementById('autoPlayBtn').textContent = '🔄 Auto Play';
+            log('⏹️ Battle stopped', 'info');
+        }
+
+        // Initialize
+        log('🤖 Multi-AI Battle Arena initialized!', 'info');
+        log('🎯 Ready to watch Gemini agents compete!', 'info');
+    </script>
+</body>
+</html>

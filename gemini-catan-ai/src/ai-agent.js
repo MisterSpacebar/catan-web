@@ -16,8 +16,19 @@ export class GeminiAgent {
 
     if (USE_REAL_GEMINI) {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
-      console.log("GeminiAgent: REAL Gemini mode enabled");
+      // Try multiple model names in order of preference
+      const modelNames = [
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro-latest", 
+        "gemini-1.5-pro",
+        "gemini-pro",
+        "gemini-1.0-pro"
+      ];
+      
+      let modelToUse = modelNames[0]; // Default to first option
+      console.log(`GeminiAgent: REAL Gemini mode enabled, trying model: ${modelToUse}`);
+      this.model = this.genAI.getGenerativeModel({ model: modelToUse });
     } else {
       console.log("GeminiAgent: MOCK mode enabled (no real API calls)");
     }
@@ -42,23 +53,44 @@ export class GeminiAgent {
       legalActions
     });
 
-    try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const rawText = response.text().trim();
+    // Try different models if the current one fails
+    const modelNames = [
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-pro-latest", 
+      "gemini-1.5-pro",
+      "gemini-pro"
+    ];
 
-      const { reasoning, action } = normalizeGeminiDecision(rawText, legalActions);
+    let lastError = null;
+    
+    for (const modelName of modelNames) {
+      try {
+        console.log(`Trying model: ${modelName}`);
+        const modelInstance = this.genAI.getGenerativeModel({ model: modelName });
+        const result = await modelInstance.generateContent(prompt);
+        const response = await result.response;
+        const rawText = response.text().trim();
 
-      return { reasoning, action };
-    } catch (error) {
-      console.error("Gemini API error:", error);
-      
-      // Fallback to first legal action
-      const fallback = legalActions[0];
-      return {
-        reasoning: "Fallback due to API error",
-        action: fallback
-      };
+        const { reasoning, action } = normalizeGeminiDecision(rawText, legalActions);
+        console.log(`✅ Success with model: ${modelName}`);
+        
+        // Update the main model instance for future calls
+        this.model = modelInstance;
+        return { reasoning, action };
+        
+      } catch (error) {
+        console.error(`❌ Model ${modelName} failed:`, error?.message || error);
+        lastError = error;
+        continue; // Try next model
+      }
     }
+    
+    // If all models failed, return fallback
+    console.error("All Gemini models failed, using fallback action");
+    const fallback = legalActions[0];
+    return {
+      reasoning: `All AI models failed (last error: ${lastError?.message}). Using fallback action: ${fallback.type}`,
+      action: fallback
+    };
   }
 }
