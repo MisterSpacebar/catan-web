@@ -46,6 +46,8 @@ import {
 } from "../lib/providers";
 import { Card, CardHeader, CardTitle, CardContent, CardSection } from "./ui/Card";
 import { Collapsible } from "./ui/Collapsible";
+import { LeaderboardRow as UILeaderboardRow } from "./ui/RankBadge";
+import { PlayerLabel } from "./ui/PlayerChip";
 
 // Use modular rank colors from colors.js
 
@@ -150,80 +152,6 @@ function ProviderBadge({ player, className }) {
 ProviderBadge.propTypes = {
   player: PropTypes.object,
   className: PropTypes.string,
-};
-
-// Leaderboard row with rank gradient
-function LeaderboardRow({ player, rank, stats }) {
-  const playerColor = getPlayerColor(player.id);
-  const rankColor = getRankColor(rank);
-  const hasRankGradient = rank <= 3;
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: rank * 0.05 }}
-      className={cn(
-        "relative rounded-lg overflow-hidden transition-all duration-200",
-        "hover:translate-x-1"
-      )}
-      style={{
-        background: hasRankGradient && rankColor ? rankColor.bg : "rgba(15, 23, 42, 0.5)",
-        border: hasRankGradient && rankColor ? `1px solid ${rankColor.border}` : "1px solid transparent",
-      }}
-    >
-      <div className="p-3 flex items-center gap-3">
-        {/* Rank badge */}
-        <div 
-          className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-          style={{
-            background: rankColor?.gradient || "linear-gradient(135deg, #334155, #1e293b)",
-            color: rank <= 3 ? "white" : "#64748b",
-          }}
-        >
-          {rank === 1 ? <Crown size={16} weight="fill" /> :
-           rank === 2 ? <Medal size={16} weight="fill" /> :
-           rank === 3 ? <Trophy size={16} weight="fill" /> :
-           rank}
-        </div>
-
-        {/* Player info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div 
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ background: playerColor.primary }}
-            />
-            <span className="text-sm font-medium text-slate-200 truncate">{player.name}</span>
-          </div>
-          <div className="flex items-center gap-3 mt-0.5 text-[11px] text-slate-500">
-            <span className="flex items-center gap-0.5">
-              <House size={10} /> {stats.towns || 0}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <Buildings size={10} /> {stats.cities || 0}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <Path size={10} /> {stats.roads || 0}
-            </span>
-          </div>
-          <ProviderBadge player={player} className="mt-1" />
-        </div>
-
-        {/* Score */}
-        <div className="text-right">
-          <div className="text-lg font-bold text-slate-200">{player.victoryPoints || 0}</div>
-          <div className="text-[10px] text-slate-500">VP</div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-LeaderboardRow.propTypes = {
-  player: PropTypes.object.isRequired,
-  rank: PropTypes.number.isRequired,
-  stats: PropTypes.object.isRequired,
 };
 
 // Resource distribution chart
@@ -524,11 +452,11 @@ export function StatsDashboard({ players, gameStats }) {
         >
           <div className="space-y-1.5">
             {sortedPlayers.map((player, idx) => (
-              <LeaderboardRow 
-                key={player.id} 
-                player={player} 
+              <UILeaderboardRow
+                key={player.id}
+                player={player}
                 rank={idx + 1}
-                stats={playerStats[player.id]}
+                compact={false}
               />
             ))}
           </div>
@@ -575,9 +503,10 @@ export function StatsDashboard({ players, gameStats }) {
               return (
                 <div key={player.id} className="rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20 overflow-hidden">
                   <div 
-                    className="p-2.5 border-b border-slate-700/30"
+                    className="p-2.5 border-b border-slate-700/30 flex items-center gap-2"
                     style={{ background: `${playerColor.primary}08` }}
                   >
+                    <PlayerLabel playerId={player.id} size="sm" />
                     <ProviderBadge player={player} />
                   </div>
                   
@@ -639,7 +568,10 @@ export function StatsDashboard({ players, gameStats }) {
           <div className="grid grid-cols-2 gap-2">
             {players.map((player) => (
               <div key={player.id} className="p-2.5 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <ProviderBadge player={player} className="mb-2" />
+                <div className="flex items-center gap-2 mb-2">
+                  <PlayerLabel playerId={player.id} size="sm" />
+                  <ProviderBadge player={player} />
+                </div>
                 <PlayerRadarChart player={player} maxValues={maxValues} />
               </div>
             ))}

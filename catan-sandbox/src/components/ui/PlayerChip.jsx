@@ -76,19 +76,25 @@ PlayerLabel.propTypes = {
 /**
  * Player turn chip with name
  */
-export function PlayerTurnChip({ player, isActive = false, size = "md", className }) {
+export function PlayerTurnChip({ player, isActive = false, size = "md", className, showName = true }) {
   const color = getPlayerColor(player?.id || 0);
-  
-  const sizeClasses = {
-    sm: "text-[11px] px-2 py-1",
-    md: "text-[13px] px-2.5 py-1.5",
-    lg: "text-[14px] px-3 py-2",
-  };
+  const sizeClasses = showName
+    ? {
+        sm: "text-[11px] px-2 py-1",
+        md: "text-[13px] px-2.5 py-1.5",
+        lg: "text-[14px] px-3 py-2",
+      }
+    : {
+        sm: "px-1.5 py-0.5",
+        md: "px-1.5 py-0.5",
+        lg: "px-2 py-0.75",
+      };
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-xl font-medium transition-all duration-200",
+        "inline-flex items-center rounded-xl font-medium transition-all duration-200",
+        showName ? "gap-2" : "gap-0.5",
         sizeClasses[size],
         className
       )}
@@ -103,7 +109,7 @@ export function PlayerTurnChip({ player, isActive = false, size = "md", classNam
       }}
     >
       <PlayerDot playerId={player?.id || 0} size={size === "lg" ? "lg" : "md"} />
-      <span>{player?.name || "Unknown"}</span>
+      {showName && <span>{player?.name || "Unknown"}</span>}
     </div>
   );
 }
@@ -113,6 +119,7 @@ PlayerTurnChip.propTypes = {
   isActive: PropTypes.bool,
   size: PropTypes.oneOf(["sm", "md", "lg"]),
   className: PropTypes.string,
+  showName: PropTypes.bool,
 };
 
 /**

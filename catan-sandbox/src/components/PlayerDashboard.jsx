@@ -377,6 +377,25 @@ export function PlayerDashboard({
   })();
 
   const currentTurnPlayer = players[currentIndex] || players[0];
+  const friendlyProvider = (id) => {
+    if (id === "google") return "Google Gemini";
+    if (id === "openai") return "OpenAI";
+    return id;
+  };
+  const normalizeTurnName = (player) => {
+    const name = (player?.name || "").trim();
+    if (!name) return `Player ${Number.isFinite(player?.id) ? player.id + 1 : ""}`.trim();
+    const friendly = friendlyProvider(player?.provider);
+    if (
+      name === player?.providerName ||
+      name === player?.provider ||
+      name === friendly ||
+      name === player?.providerModel
+    ) {
+      return `Player ${Number.isFinite(player?.id) ? player.id + 1 : ""}`.trim();
+    }
+    return name;
+  };
 
   // Get next turn player
   const nextIndex = (currentIndex + 1) % players.length;
@@ -448,15 +467,31 @@ export function PlayerDashboard({
             {/* Current Turn */}
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Current Turn</div>
-              <PlayerTurnChip player={currentTurnPlayer} isActive={true} size="md" />
-              <ProviderMetaRow player={currentTurnPlayer} />
+              <PlayerTurnChip
+                player={{ ...currentTurnPlayer, name: normalizeTurnName(currentTurnPlayer) }}
+                isActive={true}
+                size="md"
+                showName={false}
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <PlayerLabel playerId={currentTurnPlayer?.id} size="sm" />
+                <ProviderMetaRow player={currentTurnPlayer} />
+              </div>
             </div>
 
             {/* Next Turn */}
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Next Turn</div>
-              <PlayerTurnChip player={nextTurnPlayer} isActive={false} size="md" />
-              <ProviderMetaRow player={nextTurnPlayer} />
+              <PlayerTurnChip
+                player={{ ...nextTurnPlayer, name: normalizeTurnName(nextTurnPlayer) }}
+                isActive={false}
+                size="md"
+                showName={false}
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <PlayerLabel playerId={nextTurnPlayer?.id} size="sm" />
+                <ProviderMetaRow player={nextTurnPlayer} />
+              </div>
             </div>
 
             {/* Turn Queue */}
@@ -467,12 +502,16 @@ export function PlayerDashboard({
                   {turnQueue.map((player) => (
                     <div key={player.id} className="flex flex-col">
                       <PlayerTurnChip
-                        player={player}
+                        player={{ ...player, name: normalizeTurnName(player) }}
                         isActive={false}
                         size="sm"
+                        showName={false}
                         className="bg-slate-900/60"
                       />
-                      <ProviderMetaRow player={player} className="mt-1" />
+                      <div className="flex items-center gap-2 mt-1">
+                        <PlayerLabel playerId={player?.id} size="sm" />
+                        <ProviderMetaRow player={player} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -590,20 +629,33 @@ export function PlayerDashboard({
                 className="p-2 rounded-xl bg-slate-900/60 border border-slate-800/70 text-xs text-slate-200"
               >
                 <div className="flex items-start gap-2">
-                  {entry.provider && (
-                    <div className="pt-0.5">
-                      <ProviderAvatar providerId={entry.provider} size={14} />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className="pt-0.5">
+                    {entry.playerId !== undefined && (
+                      <PlayerLabel playerId={entry.playerId} size="sm" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-300 truncate">
-                          {entry.playerName || "Player"}
-                        </span>
-                        {entry.playerId !== undefined && (
-                          <PlayerLabel playerId={entry.playerId} size="sm" />
-                        )}
+                        {(() => {
+                          const friendly = (id) => {
+                            if (id === "google") return "Google Gemini";
+                            if (id === "openai") return "OpenAI";
+                            return id;
+                          };
+                          const friendlyProvider = entry.provider ? friendly(entry.provider) : null;
+                          const isDuplicateName =
+                            entry.provider &&
+                            (entry.playerName === entry.providerName ||
+                              entry.playerName === entry.provider ||
+                              entry.playerName === friendlyProvider);
+                          const nameToShow = isDuplicateName ? "" : entry.playerName;
+                          return nameToShow ? (
+                            <span className="font-semibold text-slate-300 truncate">
+                              {nameToShow}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <span className="text-[10px] text-slate-500 whitespace-nowrap">
                         {entry.turn ? `T${entry.turn} • ` : ""}
@@ -614,9 +666,34 @@ export function PlayerDashboard({
                         })}
                       </span>
                     </div>
-                    {entry.providerModel && (
-                      <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <span>{entry.providerModel}</span>
+                    {entry.provider && (
+                      <div
+                        className="flex items-center gap-2 text-[11px] text-slate-400"
+                        style={{ marginTop: "-8px" }}
+                      >
+                        <div className="w-6 h-6 rounded-md bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30">
+                          <ProviderAvatar providerId={entry.provider} size={14} />
+                        </div>
+                        <div className="leading-tight min-w-0">
+                          <div className="text-[11px] text-slate-200 truncate">
+                            {(() => {
+                              const defaultPlayer = /^player\s*\d+/i.test((entry.playerName || "").trim());
+                              const friendly = (id) => {
+                                if (id === "google") return "Google Gemini";
+                                if (id === "openai") return "OpenAI";
+                                return id;
+                              };
+                              if (!entry.providerName) return friendly(entry.provider);
+                              if (entry.providerName === entry.playerName || defaultPlayer) return friendly(entry.provider);
+                              return entry.providerName;
+                            })()}
+                          </div>
+                          {entry.providerModel && (
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {entry.providerModel}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                     <div className="text-slate-300 leading-snug">

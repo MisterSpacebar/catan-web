@@ -105,6 +105,11 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
   const playerColor = getPlayerColor(player?.id || 0);
   const rankColor = getRankColor(rank);
   const hasRankStyle = rank <= 3;
+  const providerLabel = player?.providerName || player?.provider || "";
+  const isDefaultName = /^player\s*\d+/i.test(player?.name || "");
+  const displayName = providerLabel
+    ? "" // hide duplicate text when provider chip is shown
+    : player?.name || (isDefaultName ? "" : `Player ${Number.isFinite(player?.id) ? player.id + 1 : ""}`.trim());
 
   return (
     <div
@@ -140,7 +145,7 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
             "font-medium text-slate-200 truncate",
             compact ? "text-[11px]" : "text-[13px]"
           )}>
-            {player?.name || "Unknown"}
+            {displayName || " "}
           </span>
           <PlayerLabel playerId={player?.id || 0} size="sm" />
         </div>
