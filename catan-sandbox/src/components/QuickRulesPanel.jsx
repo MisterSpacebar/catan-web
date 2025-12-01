@@ -31,17 +31,17 @@ export function QuickRulesPanel() {
   return (
     <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Book size={14} className="text-emerald-400" />
-          <span className="text-[14px] font-semibold">Quick Rules</span>
+        <CardTitle className="flex items-center gap-2 xl:gap-3">
+          <Book size={14} className="text-emerald-400 xl:scale-125" />
+          <span className="text-[14px] lg:text-base xl:text-lg font-semibold">Quick Rules</span>
         </CardTitle>
       </CardHeader>
 
       <CardContent
-        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+        className="flex-1 overflow-y-auto space-y-2.5 xl:space-y-3 2xl:space-y-4 text-[13px] lg:text-sm xl:text-base leading-relaxed pr-1 min-h-0"
       >
         {/* Added spacing between collapsibles with space-y-3 */}
-        <div className="space-y-3">
+        <div className="space-y-3 xl:space-y-4">
           {/* How to play - Collapsible */}
           <Collapsible 
             title="How to Play" 
@@ -49,15 +49,15 @@ export function QuickRulesPanel() {
             defaultOpen={true}
             variant="elevated"
           >
-            <div className="space-y-2">
+            <div className="space-y-2 xl:space-y-3">
               {steps.map((step, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
+                <div key={idx} className="flex items-start gap-3 xl:gap-4 p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                  <span className="flex-shrink-0 w-6 h-6 xl:w-8 xl:h-8 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] lg:text-sm xl:text-base font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
                     {idx + 1})
                   </span>
                   <div>
-                    <div className="text-[13px] text-slate-100 font-semibold">{step.title}</div>
-                    <div className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
+                    <div className="text-[13px] lg:text-sm xl:text-base text-slate-100 font-semibold">{step.title}</div>
+                    <div className="text-[12px] lg:text-[13px] xl:text-sm text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
                   </div>
                 </div>
               ))}
@@ -71,11 +71,11 @@ export function QuickRulesPanel() {
             defaultOpen={true}
             variant="elevated"
           >
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 xl:gap-2">
               {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
-                <div key={key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
-                  <span className="text-base drop-shadow-sm">{resourceEmoji(key)}</span>
-                  <span className="text-[13px] text-slate-200 capitalize font-medium">{key}</span>
+                <div key={key} className="flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
+                  <span className="text-base xl:text-lg 2xl:text-xl drop-shadow-sm">{resourceEmoji(key)}</span>
+                  <span className="text-[13px] lg:text-sm xl:text-base text-slate-200 capitalize font-medium">{key}</span>
                 </div>
               ))}
             </div>
@@ -88,18 +88,18 @@ export function QuickRulesPanel() {
             defaultOpen={true}
             variant="elevated"
           >
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 xl:space-y-2">
               {buildCosts.map((row) => (
-                <div key={row.name} className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                  <span className="text-[13px] font-semibold text-slate-100">{row.name}</span>
-                  <div className="flex items-center gap-1">
+                <div key={row.name} className="flex items-center justify-between p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                  <span className="text-[13px] lg:text-sm xl:text-base font-semibold text-slate-100">{row.name}</span>
+                  <div className="flex items-center gap-1 xl:gap-1.5">
                     {row.cost.map((c, i) => (
                       <div
                         key={`${row.name}-${c.resource}-${i}`}
-                        className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
+                        className="flex items-center gap-1 xl:gap-1.5 px-2 xl:px-3 py-1 xl:py-1.5 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
                       >
-                        <span className="text-[13px] drop-shadow-sm">{resourceEmoji(c.resource)}</span>
-                        <span className="text-[11px] font-semibold text-slate-200">{c.amount}</span>
+                        <span className="text-[13px] xl:text-base drop-shadow-sm">{resourceEmoji(c.resource)}</span>
+                        <span className="text-[11px] lg:text-xs xl:text-sm font-semibold text-slate-200">{c.amount}</span>
                       </div>
                     ))}
                   </div>

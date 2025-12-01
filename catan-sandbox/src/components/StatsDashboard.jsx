@@ -79,15 +79,15 @@ function StatBar({ label, value, max, color, icon: Icon }) {
   const percentage = max > 0 ? (value / max) * 100 : 0;
   
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 xl:space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          {Icon && <Icon size={12} className="text-slate-500" />}
-          <span className="text-xs text-slate-400">{label}</span>
+        <div className="flex items-center gap-1.5 xl:gap-2">
+          {Icon && <Icon size={12} className="text-slate-500 xl:scale-125" />}
+          <span className="text-xs lg:text-[13px] xl:text-sm text-slate-400">{label}</span>
         </div>
-        <span className="text-xs font-medium text-slate-300">{value}</span>
+        <span className="text-xs lg:text-[13px] xl:text-sm font-medium text-slate-300">{value}</span>
       </div>
-      <div className="h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
+      <div className="h-1.5 xl:h-2 bg-slate-800/60 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
@@ -127,12 +127,12 @@ function ProviderBadge({ player, className }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-2 text-[12px] text-slate-300 min-w-0",
+        "flex items-center gap-2 xl:gap-3 text-[12px] lg:text-[13px] xl:text-sm text-slate-300 min-w-0",
         className
       )}
     >
       <div
-        className="w-8 h-8 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0"
+        className="w-8 h-8 xl:w-9 xl:h-9 2xl:w-10 2xl:h-10 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0"
         style={{ border: `1px solid ${color}30` }}
       >
         {renderIcon()}
@@ -142,7 +142,7 @@ function ProviderBadge({ player, className }) {
           {player?.providerName || providerId || (isHuman ? "Human" : "AI")}
         </div>
         {player?.providerModel && (
-          <div className="text-[11px] text-slate-500 truncate">{player.providerModel}</div>
+          <div className="text-[11px] lg:text-xs xl:text-sm text-slate-500 truncate">{player.providerModel}</div>
         )}
       </div>
     </div>
@@ -410,7 +410,7 @@ export function StatsDashboard({ players, gameStats }) {
   return (
     <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
       <CardContent
-        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0 pt-4"
+        className="flex-1 overflow-y-auto space-y-2.5 xl:space-y-3 2xl:space-y-4 text-[13px] lg:text-sm xl:text-base leading-relaxed pr-1 min-h-0 pt-4 xl:pt-5 2xl:pt-6"
       >
         {/* Game Analytics Section */}
         <Collapsible
@@ -431,19 +431,19 @@ export function StatsDashboard({ players, gameStats }) {
           defaultOpen={true}
           variant="elevated"
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 xl:gap-3">
             {[
               { label: "Total Turns", value: overallStats.totalTurns, icon: Target, color: "#6366f1" },
               { label: "Total Trades", value: overallStats.totalTrades, icon: Handshake, color: "#22c55e" },
               { label: "Buildings", value: overallStats.totalBuildings, icon: House, color: "#f59e0b" },
               { label: "Roads Built", value: overallStats.totalRoads, icon: Path, color: "#ef4444" },
             ].map((stat, idx) => (
-              <div key={idx} className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <stat.icon size={14} style={{ color: stat.color }} />
-                  <span className="text-[11px] text-slate-500">{stat.label}</span>
+              <div key={idx} className="p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="flex items-center gap-2 xl:gap-3 mb-1 xl:mb-2">
+                  <stat.icon size={14} style={{ color: stat.color }} className="xl:scale-125" />
+                  <span className="text-[11px] lg:text-xs xl:text-sm text-slate-500">{stat.label}</span>
                 </div>
-                <div className="text-xl font-bold text-slate-200">{stat.value}</div>
+                <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-slate-200">{stat.value}</div>
               </div>
             ))}
           </div>

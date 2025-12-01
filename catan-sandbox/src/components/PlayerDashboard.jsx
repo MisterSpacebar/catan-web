@@ -84,8 +84,8 @@ function ProviderMetaRow({ player, className }) {
   const providerId = player?.provider;
   if (!providerId) return null;
   return (
-    <div className={cn("flex items-center gap-2 mt-1 text-[12px] text-slate-300", className)}>
-      <div className="w-7 h-7 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
+    <div className={cn("flex items-center gap-2 xl:gap-3 mt-1 text-[12px] lg:text-[13px] xl:text-sm text-slate-300", className)}>
+      <div className="w-7 h-7 xl:w-8 xl:h-8 2xl:w-9 2xl:h-9 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
         <ProviderAvatar providerId={providerId} size={14} />
       </div>
       <div className="min-w-0 leading-tight">
@@ -93,7 +93,7 @@ function ProviderMetaRow({ player, className }) {
           {player?.providerName || providerId}
         </div>
         {player?.providerModel && (
-          <div className="text-[10px] text-slate-500 truncate">{player.providerModel}</div>
+          <div className="text-[10px] lg:text-[11px] xl:text-xs text-slate-500 truncate">{player.providerModel}</div>
         )}
       </div>
     </div>
@@ -118,17 +118,17 @@ const DICE_ICONS = {
 /**
  * Dice display component using Phosphor dice icons
  */
-function DiceDisplay({ value, isRolling, size = 40 }) {
+function DiceDisplay({ value, isRolling, size = 40, className = "" }) {
   const DiceIcon = DICE_ICONS[value];
   
   if (!DiceIcon) {
     // Fallback for invalid values
     return (
       <div 
-        className="rounded-lg bg-gradient-to-br from-slate-100 to-slate-300 shadow-lg flex items-center justify-center"
+        className={cn("rounded-lg bg-gradient-to-br from-slate-100 to-slate-300 shadow-lg flex items-center justify-center", className)}
         style={{ width: size, height: size }}
       >
-        <span className="text-lg font-bold text-slate-800">{value}</span>
+        <span className="text-lg xl:text-xl font-bold text-slate-800">{value}</span>
       </div>
     );
   }
@@ -137,7 +137,7 @@ function DiceDisplay({ value, isRolling, size = 40 }) {
     <motion.div
       animate={isRolling ? { rotate: [0, 15, -15, 10, -5, 0] } : {}}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative"
+      className={cn("relative", className)}
     >
       <DiceIcon 
         size={size} 
@@ -173,15 +173,15 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
       player={player}
       isSelected={isSelected}
       onClick={() => onSelect?.(player)}
-      className="mb-1.5"
+      className="mb-1.5 xl:mb-2"
     >
-      <div className="p-2.5">
+      <div className="p-2.5 xl:p-3 2xl:p-4">
         {/* Header row */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 xl:gap-3 mb-2 xl:mb-3">
+          <div className="flex items-center gap-2 xl:gap-3">
             {/* Model/Provider icon */}
             <div 
-              className="w-6 h-6 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-700/40 to-slate-800/60 shadow-sm shadow-black/20 overflow-hidden"
+              className="w-6 h-6 xl:w-8 xl:h-8 2xl:w-9 2xl:h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-700/40 to-slate-800/60 shadow-sm shadow-black/20 overflow-hidden"
             >
               {hasProviderInfo ? (
                 <ProviderAvatar providerId={player.provider} size={14} />
@@ -192,11 +192,11 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
             
             {/* Player name and label */}
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[13px] font-semibold text-slate-200">{player.name}</span>
+              <div className="flex items-center gap-1.5 xl:gap-2">
+                <span className="text-[13px] lg:text-sm xl:text-base font-semibold text-slate-200">{player.name}</span>
                 <PlayerLabel playerId={player.id} size="sm" showDot={false} />
               </div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] lg:text-xs xl:text-sm text-slate-500">
                 {isAI && player.providerModel ? (
                   <span className="flex items-center gap-1">
                     <Robot size={10} className="text-indigo-400" />
@@ -216,7 +216,7 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
 
           {/* VP badge - chip style */}
           <div 
-            className="px-2.5 py-1 rounded-xl text-[13px] font-bold shadow-sm"
+            className="px-2.5 py-1 xl:px-3 xl:py-1.5 rounded-xl text-[13px] lg:text-sm xl:text-base font-bold shadow-sm"
             style={{ 
               color: color.primary,
             }}
@@ -226,9 +226,9 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
         </div>
 
         {/* Resource summary */}
-        <div className="flex items-center justify-between text-[12px] text-slate-400">
+        <div className="flex items-center justify-between text-[12px] lg:text-[13px] xl:text-sm text-slate-400">
           <ResourceSummary resources={resources} />
-          <span className="text-[11px]">{totalResources} cards</span>
+          <span className="text-[11px] lg:text-xs xl:text-sm">{totalResources} cards</span>
         </div>
 
         {/* Expanded resource grid when selected */}
@@ -238,7 +238,7 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="mt-2 pt-2"
+            className="mt-2 xl:mt-3 pt-2 xl:pt-3"
             style={{ borderTop: '1px solid rgba(51, 65, 85, 0.3)' }}
           >
             <ResourceGrid resources={resources} size="sm" />
@@ -511,7 +511,7 @@ export function PlayerDashboard({
   return (
     <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
       <CardContent
-        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0 pt-4"
+        className="flex-1 overflow-y-auto space-y-2.5 xl:space-y-3 2xl:space-y-4 text-[13px] lg:text-sm xl:text-base leading-relaxed pr-1 min-h-0 pt-4 xl:pt-5 2xl:pt-6"
       >
         {/* Game Overview Section */}
         <Collapsible
@@ -551,11 +551,11 @@ export function PlayerDashboard({
           defaultOpen={true}
           variant="elevated"
         >
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 xl:space-y-3">
             {/* Current Turn */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-              <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Current Turn</div>
-              <div className="flex items-center gap-2">
+            <div className="p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+              <div className="text-[11px] lg:text-xs xl:text-sm font-semibold tracking-wide text-slate-500 uppercase mb-2 xl:mb-3">Current Turn</div>
+              <div className="flex items-center gap-2 xl:gap-3">
                 <PlayerTurnChip
                   player={{ ...currentTurnPlayer, name: normalizeTurnName(currentTurnPlayer) }}
                   isActive={true}
@@ -568,9 +568,9 @@ export function PlayerDashboard({
             </div>
 
             {/* Next Turn */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-              <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Next Turn</div>
-              <div className="flex items-center gap-2">
+            <div className="p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+              <div className="text-[11px] lg:text-xs xl:text-sm font-semibold tracking-wide text-slate-500 uppercase mb-2 xl:mb-3">Next Turn</div>
+              <div className="flex items-center gap-2 xl:gap-3">
                 <PlayerTurnChip
                   player={{ ...nextTurnPlayer, name: normalizeTurnName(nextTurnPlayer) }}
                   isActive={false}
@@ -584,11 +584,11 @@ export function PlayerDashboard({
 
             {/* Turn Queue */}
             {turnQueue.length > 0 && (
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Upcoming Order</div>
-                <div className="flex flex-wrap gap-2">
+              <div className="p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="text-[11px] lg:text-xs xl:text-sm font-semibold tracking-wide text-slate-500 uppercase mb-2 xl:mb-3">Upcoming Order</div>
+                <div className="flex flex-wrap gap-2 xl:gap-3">
                   {turnQueue.map((player) => (
-                    <div key={player.id} className="flex items-center gap-2">
+                    <div key={player.id} className="flex items-center gap-2 xl:gap-3">
                       <PlayerTurnChip
                         player={{ ...player, name: normalizeTurnName(player) }}
                         isActive={false}
@@ -606,24 +606,24 @@ export function PlayerDashboard({
 
             {/* Dice Display */}
             {lastRoll && (
-              <div className="p-2.5 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <div className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Last Roll</div>
+              <div className="p-2.5 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="text-[10px] lg:text-[11px] xl:text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2 xl:mb-3">Last Roll</div>
                 {roll1 != null && roll2 != null ? (
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-2 xl:gap-3">
                     {/* First Die */}
-                    <DiceDisplay value={roll1} size={28} />
+                    <DiceDisplay value={roll1} size={28} className="xl:scale-125 2xl:scale-150" />
                     
                     {/* Plus sign */}
-                    <Plus size={14} weight="bold" className="text-slate-500" />
+                    <Plus size={14} weight="bold" className="text-slate-500 xl:scale-125" />
                     
                     {/* Second Die */}
-                    <DiceDisplay value={roll2} size={28} />
+                    <DiceDisplay value={roll2} size={28} className="xl:scale-125 2xl:scale-150" />
                     
                     {/* Equals sign */}
-                    <Equals size={14} weight="bold" className="text-slate-500" />
+                    <Equals size={14} weight="bold" className="text-slate-500 xl:scale-125" />
                     
                     {/* Sum display */}
-                    <span className="text-lg font-bold text-slate-200">
+                    <span className="text-lg xl:text-xl 2xl:text-2xl font-bold text-slate-200">
                       {rollSum}
                     </span>
                   </div>
@@ -634,8 +634,8 @@ export function PlayerDashboard({
             )}
 
             {/* Controls */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20 space-y-3">
-              <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Controls</div>
+            <div className="p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20 space-y-3 xl:space-y-4">
+              <div className="text-[11px] lg:text-xs xl:text-sm font-semibold tracking-wide text-slate-500 uppercase">Controls</div>
               <TurnControls
                 onRoll={onRollDice}
                 onEndTurn={onEndTurn || (() => {})}
@@ -646,7 +646,7 @@ export function PlayerDashboard({
               />
               {/* BUILD & ACTIONS - commented out for agent-only games
               <div className="h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent" />
-              <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Build & Actions</div>
+              <div className="text-[11px] lg:text-xs xl:text-sm font-semibold tracking-wide text-slate-500 uppercase">Build & Actions</div>
               <ActionTools
                 mode={mode}
                 onSetMode={onSetMode}
@@ -792,7 +792,7 @@ export function PlayerDashboard({
           className="!bg-transparent !shadow-none !p-0"
           headerClassName="!bg-gradient-to-br !from-slate-800/50 !to-slate-900/60 !rounded-2xl !shadow-lg !shadow-black/20"
         >
-          <div className="space-y-2.5 pt-2">
+          <div className="space-y-2.5 xl:space-y-3 pt-2">
             {/* How to play */}
             <Collapsible 
               title="How to Play" 
@@ -800,15 +800,15 @@ export function PlayerDashboard({
               defaultOpen={true}
               variant="elevated"
             >
-              <div className="space-y-2">
+              <div className="space-y-2 xl:space-y-3">
                 {QUICK_RULES_STEPS.map((step, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
+                  <div key={idx} className="flex items-start gap-3 xl:gap-4 p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                    <span className="flex-shrink-0 w-6 h-6 xl:w-8 xl:h-8 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] lg:text-sm xl:text-base font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
                       {idx + 1})
                     </span>
                     <div>
-                      <div className="text-[13px] text-slate-100 font-semibold">{step.title}</div>
-                      <div className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
+                      <div className="text-[13px] lg:text-sm xl:text-base text-slate-100 font-semibold">{step.title}</div>
+                      <div className="text-[12px] lg:text-[13px] xl:text-sm text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -822,11 +822,11 @@ export function PlayerDashboard({
               defaultOpen={true}
               variant="elevated"
             >
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5 xl:gap-2">
                 {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
-                  <div key={key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
-                    <span className="text-base drop-shadow-sm">{resourceEmoji(key)}</span>
-                    <span className="text-[13px] text-slate-200 capitalize font-medium">{key}</span>
+                  <div key={key} className="flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
+                    <span className="text-base xl:text-lg 2xl:text-xl drop-shadow-sm">{resourceEmoji(key)}</span>
+                    <span className="text-[13px] lg:text-sm xl:text-base text-slate-200 capitalize font-medium">{key}</span>
                   </div>
                 ))}
               </div>
@@ -839,18 +839,18 @@ export function PlayerDashboard({
               defaultOpen={true}
               variant="elevated"
             >
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 xl:space-y-2">
                 {BUILD_COSTS.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                    <span className="text-[13px] font-semibold text-slate-100">{row.name}</span>
-                    <div className="flex items-center gap-1">
+                  <div key={row.name} className="flex items-center justify-between p-3 xl:p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                    <span className="text-[13px] lg:text-sm xl:text-base font-semibold text-slate-100">{row.name}</span>
+                    <div className="flex items-center gap-1 xl:gap-1.5">
                       {row.cost.map((c, i) => (
                         <div
                           key={`${row.name}-${c.resource}-${i}`}
-                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
+                          className="flex items-center gap-1 xl:gap-1.5 px-2 xl:px-3 py-1 xl:py-1.5 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
                         >
-                          <span className="text-[13px] drop-shadow-sm">{resourceEmoji(c.resource)}</span>
-                          <span className="text-[11px] font-semibold text-slate-200">{c.amount}</span>
+                          <span className="text-[13px] xl:text-base drop-shadow-sm">{resourceEmoji(c.resource)}</span>
+                          <span className="text-[11px] lg:text-xs xl:text-sm font-semibold text-slate-200">{c.amount}</span>
                         </div>
                       ))}
                     </div>
