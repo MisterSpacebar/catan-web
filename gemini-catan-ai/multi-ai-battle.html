@@ -161,9 +161,9 @@
         
         <div class="controls">
             <button class="btn-primary" onclick="startNewBattle()">Start New Battle</button>
-            <button class="btn-info" onclick="playNextTurn()" id="nextTurnBtn" disabled>⏭Next Turn</button>
+            <button class="btn-info" onclick="playNextTurn()" id="nextTurnBtn" disabled>Next Turn</button>
             <button class="btn-warning" onclick="autoPlay()" id="autoPlayBtn" disabled>Auto Play</button>
-            <button class="btn-danger" onclick="stopBattle()">⏹Stop Battle</button>
+            <button class="btn-danger" onclick="stopBattle()">Stop Battle</button>
         </div>
         
         <div class="game-status" id="gameStatus">
@@ -311,7 +311,17 @@
                     log(`${playerIcon} 🎲 Rolled: ${afterDice.join(' + ')} = ${total}`, 'dice');
                     
                     if (total === 7) {
-                        log(`${playerIcon} ⚠️ Rolled 7! Robber must be moved`, 'warning');
+                        log(`${playerIcon} ⚠️ Rolled 7! Robber activates - players must discard excess cards`, 'warning');
+                    } else {
+                        // Find which hexes produce resources
+                        const productiveHexes = (afterState.board?.tiles || afterState.board?.hexes || [])
+                            .filter(hex => hex.number === total && !hex.hasRobber && hex.resource)
+                            .map(hex => `${hex.resource} (${total})`)
+                            .join(', ');
+                        
+                        if (productiveHexes) {
+                            log(`${playerIcon} 🏭 Hexes producing: ${productiveHexes}`, 'dice');
+                        }
                     }
                 }
             }
@@ -366,24 +376,108 @@
             const afterRobber = afterState.board?.robberHex;
             
             if (beforeRobber !== afterRobber) {
-                log(`${playerIcon} 🦹 Moved robber from hex ${beforeRobber} to hex ${afterRobber}`, 'robber');
+                // Find what resource the robbed hex produces
+                const robbedHex = (afterState.board?.tiles || afterState.board?.hexes || [])
+                    .find(hex => hex.id === afterRobber || hex.index === afterRobber);
+                const hexResource = robbedHex?.resource ? ` (${robbedHex.resource} hex)` : '';
+                
+                log(`${playerIcon} 🦹 Moved robber from hex ${beforeRobber} to hex ${afterRobber}${hexResource}`, 'robber');
+                
+                // Check if any player lost resources due to robber (resource stealing)
+                if (afterState.players) {
+                    for (let i = 0; i < afterState.players.length; i++) {
+                        if (i === playerId) continue; // Skip the current player
+                        
+                        const beforeOtherPlayer = beforeState.players?.[i];
+                        const afterOtherPlayer = afterState.players[i];
+                        
+                        if (beforeOtherPlayer && afterOtherPlayer) {
+                            const beforeTotal = Object.values(beforeOtherPlayer.resources || {}).reduce((a, b) => a + b, 0);
+                            const afterTotal = Object.values(afterOtherPlayer.resources || {}).reduce((a, b) => a + b, 0);
+                            
+                            if (afterTotal < beforeTotal) {
+                                const stolen = beforeTotal - afterTotal;
+                                const otherPlayerIcon = ['🔴', '🔵', '🟢', '🟡'][i] || '⚫';
+                                log(`${playerIcon} 🦹 Stole ${stolen} resource${stolen > 1 ? 's' : ''} from ${otherPlayerIcon} Player ${i}`, 'robber');
+                            }
+                        }
+                    }
+                }
             }
             
-            // Check resource changes
+            // Check detailed resource changes
             const beforePlayer = beforeState.players?.[playerId];
             const afterPlayer = afterState.players?.[playerId];
             
             if (beforePlayer && afterPlayer) {
-                // Count total resources
-                const beforeResources = Object.values(beforePlayer.resources || {}).reduce((a, b) => a + b, 0);
-                const afterResources = Object.values(afterPlayer.resources || {}).reduce((a, b) => a + b, 0);
+                const resourceTypes = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+                const resourceIcons = {
+                    wood: '🪵 Wood', brick: '🧱 Brick', sheep: '🐑 Sheep', 
+                    wheat: '🌾 Wheat', ore: '⛰️ Ore'
+                };
                 
-                if (afterResources > beforeResources) {
-                    const gained = afterResources - beforeResources;
-                    log(`${playerIcon} 📦 Gained ${gained} resource${gained > 1 ? 's' : ''} from dice/trade`, 'resource');
-                } else if (afterResources < beforeResources) {
-                    const spent = beforeResources - afterResources;
-                    log(`${playerIcon} 💰 Spent ${spent} resource${spent > 1 ? 's' : ''} for ${actionType}`, 'resource');
+                // Track detailed resource changes
+                const resourceChanges = {};
+                let totalGained = 0;
+                let totalSpent = 0;
+                
+                for (const resource of resourceTypes) {
+                    const before = beforePlayer.resources?.[resource] || 0;
+                    const after = afterPlayer.resources?.[resource] || 0;
+                    const change = after - before;
+                    
+                    if (change !== 0) {
+                        resourceChanges[resource] = change;
+                        if (change > 0) totalGained += change;
+                        if (change < 0) totalSpent += Math.abs(change);
+                    }
+                }
+                
+                // Log resource gains (from dice/trade income)
+                if (totalGained > 0) {
+                    const gainedDetails = Object.entries(resourceChanges)
+                        .filter(([_, change]) => change > 0)
+                        .map(([resource, change]) => `${change} ${resourceIcons[resource] || resource}`)
+                        .join(', ');
+                    
+                    if (actionType === 'rollDice') {
+                        log(`${playerIcon} 🎲 Gained from dice: ${gainedDetails}`, 'resource');
+                    } else if (actionType === 'harborTrade' || actionType === 'trade') {
+                        log(`${playerIcon} 🔄 Received from trade: ${gainedDetails}`, 'resource');
+                    } else {
+                        log(`${playerIcon} 📦 Gained: ${gainedDetails}`, 'resource');
+                    }
+                }
+                
+                // Log resource spending (for buildings/cards)
+                if (totalSpent > 0) {
+                    const spentDetails = Object.entries(resourceChanges)
+                        .filter(([_, change]) => change < 0)
+                        .map(([resource, change]) => `${Math.abs(change)} ${resourceIcons[resource] || resource}`)
+                        .join(', ');
+                    
+                    let actionDescription = actionType;
+                    if (actionType === 'buildTown' || actionType === 'buildSettlement') actionDescription = 'settlement';
+                    if (actionType === 'buildCity') actionDescription = 'city';
+                    if (actionType === 'buildRoad') actionDescription = 'road';
+                    if (actionType === 'buyDevCard') actionDescription = 'development card';
+                    if (actionType === 'harborTrade') actionDescription = 'trade';
+                    
+                    log(`${playerIcon} 💰 Spent for ${actionDescription}: ${spentDetails}`, 'resource');
+                }
+                
+                // Log specific trade details if it's a trade action
+                if (actionType === 'harborTrade' && totalSpent > 0 && totalGained > 0) {
+                    const givenDetails = Object.entries(resourceChanges)
+                        .filter(([_, change]) => change < 0)
+                        .map(([resource, change]) => `${Math.abs(change)} ${resourceIcons[resource] || resource}`)
+                        .join(', ');
+                    const receivedDetails = Object.entries(resourceChanges)
+                        .filter(([_, change]) => change > 0)
+                        .map(([resource, change]) => `${change} ${resourceIcons[resource] || resource}`)
+                        .join(', ');
+                    
+                    log(`${playerIcon} 🔄 Harbor trade: ${givenDetails} → ${receivedDetails}`, 'resource');
                 }
                 
                 // Check development cards
@@ -391,7 +485,14 @@
                 const afterDevCards = afterPlayer.developmentCards?.length || 0;
                 
                 if (afterDevCards > beforeDevCards) {
-                    log(`${playerIcon} 🃏 Bought development card`, 'dev-card');
+                    const cardsBought = afterDevCards - beforeDevCards;
+                    log(`${playerIcon} 🃏 Bought ${cardsBought} development card${cardsBought > 1 ? 's' : ''} (🌾🐑⛰️ → 🎴)`, 'dev-card');
+                }
+                
+                // Check if development cards were played (decrease in count)
+                if (afterDevCards < beforeDevCards) {
+                    const cardsPlayed = beforeDevCards - afterDevCards;
+                    log(`${playerIcon} 🎴 Played ${cardsPlayed} development card${cardsPlayed > 1 ? 's' : ''}`, 'dev-card');
                 }
                 
                 // Check victory points
@@ -519,8 +620,8 @@
             if (isAutoPlaying) return;
             
             isAutoPlaying = true;
-            document.getElementById('autoPlayBtn').textContent = '⏸️ Pause';
-            log('🔄 Auto-play enabled! Watching AI battle...', 'info');
+            document.getElementById('autoPlayBtn').textContent = 'Pause ';
+            log('Auto-play enabled! Watching AI battle...', 'info');
             
             battleInterval = setInterval(async () => {
                 if (!isAutoPlaying) return;
