@@ -46,7 +46,7 @@ import {
 } from "../lib/providers";
 import { Card, CardHeader, CardTitle, CardContent, CardSection } from "./ui/Card";
 import { Collapsible } from "./ui/Collapsible";
-import { LeaderboardRow as UILeaderboardRow } from "./ui/RankBadge";
+import { LeaderboardRow as UILeaderboardRow, calculateRanksWithTies } from "./ui/RankBadge";
 import { PlayerLabel } from "./ui/PlayerChip";
 
 // Use modular rank colors from colors.js
@@ -510,10 +510,11 @@ ResourcePieChart.propTypes = {
 export function StatsDashboard({ players, gameStats }) {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(true);
   
-  const sortedPlayers = useMemo(() => 
-    [...players].sort((a, b) => (b.victoryPoints || 0) - (a.victoryPoints || 0)),
-    [players]
-  );
+  const { sortedPlayers, rankMap } = useMemo(() => {
+    const sorted = [...players].sort((a, b) => (b.victoryPoints || 0) - (a.victoryPoints || 0));
+    const ranks = calculateRanksWithTies(players);
+    return { sortedPlayers: sorted, rankMap: ranks };
+  }, [players]);
 
   const playerStats = useMemo(() => {
     const stats = {};
@@ -613,12 +614,12 @@ export function StatsDashboard({ players, gameStats }) {
           variant="elevated"
         >
           <div className="space-y-1.5">
-            {sortedPlayers.map((player, idx) => (
+            {sortedPlayers.map((player) => (
               <UILeaderboardRow
                 key={player.id}
                 player={player}
-                rank={idx + 1}
-                compact={false}
+                rank={rankMap.get(player.id) || 1}
+                compact={true}
               />
             ))}
           </div>

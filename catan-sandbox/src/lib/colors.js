@@ -148,23 +148,29 @@ export const RANK_COLORS = {
   1: {
     name: "Gold",
     gradient: "linear-gradient(135deg, #fbbf24, #f59e0b)",
-    bg: "rgba(251, 191, 36, 0.15)",
+    bg: "rgba(251, 191, 36, 0.12)",
     border: "rgba(251, 191, 36, 0.25)",
     text: "#fbbf24",
+    icon: "#fbbf24",
+    glow: "rgba(251, 191, 36, 0.25)",
   },
   2: {
     name: "Silver",
     gradient: "linear-gradient(135deg, #94a3b8, #64748b)",
-    bg: "rgba(148, 163, 184, 0.15)",
+    bg: "rgba(148, 163, 184, 0.12)",
     border: "rgba(148, 163, 184, 0.25)",
     text: "#94a3b8",
+    icon: "#94a3b8",
+    glow: "rgba(148, 163, 184, 0.2)",
   },
   3: {
     name: "Bronze",
     gradient: "linear-gradient(135deg, #d97706, #b45309)",
-    bg: "rgba(217, 119, 6, 0.15)",
+    bg: "rgba(217, 119, 6, 0.12)",
     border: "rgba(217, 119, 6, 0.25)",
     text: "#d97706",
+    icon: "#d97706",
+    glow: "rgba(217, 119, 6, 0.2)",
   },
 };
 

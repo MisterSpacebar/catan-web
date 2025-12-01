@@ -40,7 +40,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "./ui/Card";
 import { Collapsible } from "./ui/Collapsible";
 import { PlayerDot, PlayerLabel, PlayerTurnChip, PlayerCard } from "./ui/PlayerChip";
 import { ResourceGrid, ResourceSummary } from "./ui/ResourceChip";
-import { RankBadge, LeaderboardRow } from "./ui/RankBadge";
+import { RankBadge, LeaderboardRow, calculateRanksWithTies } from "./ui/RankBadge";
 import { Button } from "./ui/Button";
 
 // Model icons mapping (fallback for players without provider info)
@@ -445,12 +445,13 @@ export function PlayerDashboard({
   const currentPlayerId =
     typeof currentPlayer === "number" ? currentPlayer : currentPlayer?.id;
 
-  // Calculate rankings
-  const rankings = useMemo(() => {
+  // Calculate rankings with tie handling
+  const { sortedPlayers: rankings, rankMap } = useMemo(() => {
     const sorted = [...players].sort((a, b) => 
       (b.victoryPoints || 0) - (a.victoryPoints || 0)
     );
-    return sorted;
+    const ranks = calculateRanksWithTies(players);
+    return { sortedPlayers: sorted, rankMap: ranks };
   }, [players]);
 
   // Get current turn player using the currentPlayer prop, not an isCurrentTurn flag
@@ -666,11 +667,11 @@ export function PlayerDashboard({
           variant="elevated"
         >
           <div className="space-y-1.5">
-            {rankings.map((player, idx) => (
+            {rankings.map((player) => (
               <LeaderboardRow
                 key={player.id}
                 player={player}
-                rank={idx + 1}
+                rank={rankMap.get(player.id) || 1}
                 compact={true}
               />
             ))}

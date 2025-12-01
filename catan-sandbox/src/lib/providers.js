@@ -130,37 +130,17 @@ export const LLM_CATEGORIES = {
       {
         id: "openai",
         name: "OpenAI",
-        models: ["gpt-5-nano-2025-08-07", "GPT-4o", "GPT-4 Turbo", "o1-preview"],
+        models: ["gpt-4o", "gpt-5-nano"],
       },
       {
         id: "anthropic",
         name: "Anthropic",
-        // Concrete Claude 4.x model IDs users can point at.
-        models: [
-          "claude-haiku-4-5-20251001",
-          "claude-sonnet-4-5-20250929",
-          "claude-opus-4-1-20250805",
-          "claude-opus-4-5-20251101",
-        ],
-        endpoints: [
-          {
-            id: "anthropic-default",
-            label: "Anthropic API (api.anthropic.com)",
-            url: "https://api.anthropic.com",
-          },
-        ],
+        models: ["claude-haiku-4-5-20251001"],
       },
       {
         id: "google",
         name: "Google Gemini",
-        models: ["gemini-2.5-flash-lite", "Gemini 2.0 Pro", "Gemini 1.5 Pro"],
-        endpoints: [
-          {
-            id: "gemini-default",
-            label: "Gemini (OpenAI compatible)",
-            url: "https://generativelanguage.googleapis.com/v1beta/openai",
-          },
-        ],
+        models: ["gemini-2.5-flash-lite"],
       },
       {
         id: "xai",

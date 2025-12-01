@@ -13,10 +13,14 @@ import {
   Gear,
   CaretRight,
   Desktop,
+  Globe,
   Sparkle,
   GameController,
   Key,
   WarningCircle,
+  Crown,
+  Lightning,
+  Cube,
 } from "@phosphor-icons/react";
 import { cn, resourceColor } from "../lib/utils";
 import { getPlayerColor } from "../lib/colors";
@@ -27,6 +31,9 @@ import {
   LLM_CATEGORIES,
   WHITE_LOGO_PROVIDERS,
 } from "../lib/providers";
+import { Card, CardContent } from "./ui/Card";
+import { Collapsible } from "./ui/Collapsible";
+import { Button } from "./ui/Button";
 
 const API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
@@ -41,19 +48,27 @@ export function ProviderLogo({ providerId, size = 20 }) {
   const useWhiteLogo = WHITE_LOGO_PROVIDERS.includes(providerId);
   
   if (IconComponent) {
+    // Try to use Color variant for non-white-logo providers
+    if (!useWhiteLogo && IconComponent.Color) {
+      return (
+        <div className="flex-shrink-0 flex items-center justify-center">
+          <IconComponent.Color size={size} />
+        </div>
+      );
+    }
+    
+    // For white logo providers or providers without Color variant
+    const iconStyle = useWhiteLogo 
+      ? { color: "#ffffff", fill: "#ffffff" } 
+      : { color, fill: color };
+    
     return (
       <div className="flex-shrink-0 flex items-center justify-center">
-        {/* Prefer full-color logos by default; force white for certain brands. */}
-        {(!useWhiteLogo && IconComponent.Color) ? (
-          <IconComponent.Color size={size} />
-        ) : (
-          <IconComponent size={size} style={{ color: useWhiteLogo ? "#ffffff" : color }} />
-        )}
+        <IconComponent size={size} style={iconStyle} />
       </div>
     );
   }
   
-  // Fallback for providers without icons
   return (
     <div
       className="rounded-md flex items-center justify-center font-bold text-white text-[9px] flex-shrink-0"
@@ -83,7 +98,6 @@ function findProvider(categoryId, providerId) {
 function providerRequiresApiKey(categoryId, providerId) {
   const provider = findProvider(categoryId, providerId);
   if (!provider) return false;
-  // Local providers (e.g., Ollama) don't need API keys.
   if (provider.local) return false;
   return true;
 }
@@ -113,11 +127,6 @@ function getApiKeyValidation(categoryId, providerId, apiKey) {
 function LLMProviderDropdown({ config, onChange, onClose }) {
   const defaultCategory = config.providerCategory || Object.keys(LLM_CATEGORIES)[0] || null;
   const [selectedCategory, setSelectedCategory] = useState(defaultCategory);
-  const [expandedProvider, setExpandedProvider] = useState(
-    config.provider
-      ? { categoryId: config.providerCategory || defaultCategory, providerId: config.provider }
-      : null
-  );
 
   const updateProviderState = (categoryId, provider, extra = {}) => {
     const fallbackModel = provider.models?.[0] || "";
@@ -142,32 +151,23 @@ function LLMProviderDropdown({ config, onChange, onClose }) {
   };
 
   const handleProviderSelect = (categoryId, provider) => {
-    setExpandedProvider((prev) =>
-      prev?.providerId === provider.id && prev?.categoryId === categoryId
-        ? null
-        : { categoryId, providerId: provider.id }
-    );
     updateProviderState(categoryId, provider);
-  };
-
-  const handleModelSelect = (categoryId, provider, model) => {
-    updateProviderState(categoryId, provider, { model });
-    onClose();
-  };
-
-  const handleEndpointSelect = (categoryId, provider, endpointUrl) => {
-    updateProviderState(categoryId, provider, { apiEndpoint: endpointUrl });
+    onClose(); // Close dropdown after selecting provider
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+      initial={{ opacity: 0, y: -8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+      exit={{ opacity: 0, y: -8, scale: 0.98 }}
       transition={{ duration: 0.15 }}
-      className="mt-3 w-full z-[40] rounded-2xl bg-slate-950/95 backdrop-blur-md shadow-2xl shadow-black/70 overflow-hidden ring-1 ring-white/5"
+      className="mt-2 w-full z-[40] rounded-2xl overflow-hidden shadow-2xl shadow-black/60"
+      style={{
+        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95))",
+        border: "1px solid rgba(71, 85, 105, 0.3)",
+      }}
     >
-      <div className="max-h-[440px] overflow-y-auto">
+      <div className="max-h-[380px] overflow-y-auto">
         {Object.entries(LLM_CATEGORIES).map(([categoryId, category]) => (
           <div key={categoryId}>
             {/* Category Header */}
@@ -175,19 +175,22 @@ function LLMProviderDropdown({ config, onChange, onClose }) {
               onClick={() =>
                 setSelectedCategory(selectedCategory === categoryId ? null : categoryId)
               }
-              className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-900/60 hover:bg-slate-800/60 transition-colors rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-2 h-8 rounded-full"
-                  style={{ background: `${category.color}40` }}
+                  className="w-1.5 h-6 rounded-full"
+                  style={{ background: `linear-gradient(180deg, ${category.color}, ${category.color}80)` }}
                 />
-                <span className="text-sm font-semibold text-slate-100 tracking-tight">
-                  {`${category.label} (${category.providers.length})`}
+                <span className="text-sm font-semibold text-slate-200">
+                  {category.label}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  ({category.providers.length})
                 </span>
               </div>
               <CaretRight
-                size={16}
+                size={14}
                 weight="bold"
                 className={cn(
                   "text-slate-500 transition-transform duration-200",
@@ -204,138 +207,46 @@ function LLMProviderDropdown({ config, onChange, onClose }) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="overflow-hidden bg-slate-950/60 rounded-xl mt-1"
+                  className="overflow-hidden"
                 >
-                  {category.providers.map((provider) => (
-                    <div key={provider.id} className="px-3 pb-1">
+                  <div className="px-2 pb-2 space-y-1">
+                    {category.providers.map((provider) => (
                       <button
+                        key={provider.id}
                         onClick={() => handleProviderSelect(categoryId, provider)}
                         className={cn(
-                          "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] hover:shadow-[0_0_0_1px_rgba(129,140,248,0.4)] hover:bg-slate-900/70",
-                          config.provider === provider.id && "bg-slate-900/80 shadow-[0_0_0_1px_rgba(129,140,248,0.45)]"
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150",
+                          "hover:bg-white/[0.05]",
+                          config.provider === provider.id && "bg-indigo-500/10 ring-1 ring-indigo-500/30"
                         )}
                       >
-                        <ProviderLogo providerId={provider.id} size={20} />
+                        <ProviderLogo providerId={provider.id} size={18} />
                         <span className="text-sm text-slate-200 flex-1 text-left font-medium">
                           {provider.name}
                         </span>
-                        {provider.local && (
-                          <span className="text-[11px] text-slate-500 bg-slate-800/70 px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                            <Desktop size={12} />
+                        {provider.local ? (
+                          <span className="text-[10px] text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Desktop size={10} />
                             Local
                           </span>
+                        ) : (
+                          <span className="text-[10px] text-emerald-400/70 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Globe size={10} />
+                            Online
+                          </span>
                         )}
-                        <CaretDown
-                          size={14}
-                          weight="bold"
-                          className={cn(
-                            "text-slate-500 transition-transform",
-                            expandedProvider?.providerId === provider.id &&
-                              expandedProvider?.categoryId === categoryId &&
-                              "rotate-180 text-slate-200"
-                          )}
-                        />
                         {config.provider === provider.id && (
-                          <Check size={16} weight="bold" className="text-indigo-400" />
+                          <Check size={14} weight="bold" className="text-indigo-400" />
                         )}
                       </button>
-
-                      <AnimatePresence>
-                        {expandedProvider?.providerId === provider.id &&
-                          expandedProvider?.categoryId === categoryId &&
-                          provider.models?.length > 0 && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.18 }}
-                              className="overflow-hidden pt-2 space-y-2"
-                            >
-                              {provider.models.map((model, idx) => {
-                                const endpoints = provider.endpoints || [];
-                                const selectedEndpoint =
-                                  (config.provider === provider.id && config.apiEndpoint) ||
-                                  endpoints[0]?.url ||
-                                  "";
-                                const isModelSelected =
-                                  config.provider === provider.id && config.model === model;
-                                const rowTone =
-                                  idx % 2 === 0 ? "bg-slate-900/60" : "bg-slate-800/60";
-
-                                return (
-                                  <button
-                                    key={model}
-                                    onClick={() => handleModelSelect(categoryId, provider, model)}
-                                    className={cn(
-                                      "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
-                                      rowTone,
-                                      "hover:bg-slate-800/80 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]",
-                                      isModelSelected &&
-                                        "shadow-[0_0_0_1px_rgba(129,140,248,0.45)] ring-1 ring-indigo-400/60"
-                                    )}
-                                  >
-                                    <div
-                                      className="w-1 h-full rounded-full bg-gradient-to-b from-indigo-400/60 to-purple-400/60"
-                                      aria-hidden
-                                    />
-                                    <ProviderLogo providerId={provider.id} size={18} />
-                                    <div className="flex-1">
-                                      <div className="text-sm font-semibold text-slate-200">
-                                        {model}
-                                      </div>
-                                      {endpoints.length > 0 && (
-                                        <div className="text-[11px] text-slate-500">
-                                          {endpoints.find((e) => e.url === selectedEndpoint)?.label ||
-                                            "Default endpoint"}
-                                        </div>
-                                      )}
-                                    </div>
-                                    {isModelSelected && (
-                                      <Check size={16} weight="bold" className="text-indigo-300" />
-                                    )}
-                                  </button>
-                                );
-                              })}
-
-                                  {provider.endpoints?.length > 0 && (
-                                <div className="flex flex-wrap gap-2 px-1 pb-1">
-                                  {provider.endpoints.map((endpoint) => {
-                                    const isEndpointSelected =
-                                      (config.provider === provider.id && config.apiEndpoint) ===
-                                        endpoint.url ||
-                                      (!config.apiEndpoint && endpoint === provider.endpoints[0]);
-                                    return (
-                                      <button
-                                        key={endpoint.id}
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEndpointSelect(categoryId, provider, endpoint.url);
-                                        }}
-                                        className={cn(
-                                          "text-[11px] px-3 py-1.5 rounded-full transition-colors bg-slate-900/70 hover:bg-slate-800/80 text-slate-200 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]",
-                                          isEndpointSelected &&
-                                            "ring-1 ring-indigo-400/60 text-indigo-200 bg-indigo-900/40 shadow-[0_0_0_1px_rgba(129,140,248,0.3)]"
-                                        )}
-                                      >
-                                        {endpoint.label}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </motion.div>
-                          )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         ))}
       </div>
-
     </motion.div>
   );
 }
@@ -442,296 +353,280 @@ function PlayerConfigCard({ playerId, config, onChange }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: playerId * 0.05 }}
-      className="relative rounded-2xl p-5 transition-all"
+      className="rounded-2xl overflow-hidden transition-all"
       style={{
-        background: `linear-gradient(135deg, ${color.primary}15, ${color.primary}05)`,
-        borderLeft: `4px solid ${color.primary}`,
-        boxShadow: `0 4px 20px ${color.primary}10`,
+        background: `linear-gradient(135deg, ${color.primary}12, ${color.primary}05)`,
+        boxShadow: `0 4px 20px ${color.primary}08, inset 0 1px 0 rgba(255,255,255,0.03)`,
       }}
     >
-      <div className="flex items-center gap-4">
-        {/* Player Badge */}
-        <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg flex-shrink-0"
-          style={{
-            background: `linear-gradient(135deg, ${color.primary}, ${color.dark})`,
-            color: "white",
-            boxShadow: `0 6px 16px ${color.primary}50`,
-          }}
-        >
-          {playerId + 1}
-        </div>
-
-        {/* Player Info */}
-        <div className="flex-1 min-w-0">
-          <div className="text-base font-bold text-slate-100">Player {playerId + 1}</div>
-          <div className="text-sm text-slate-400 truncate mt-0.5">
-            {config.type === "human" 
-              ? "Human Player" 
-              : config.provider 
-                ? `${config.providerName || config.provider} - ${config.model}`
-                : "Select AI Provider"
-            }
-          </div>
-        </div>
-
-        {/* Type Toggle */}
-        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-900/70 flex-shrink-0">
-          <button
-            onClick={() => handleTypeToggle("human")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-              config.type === "human"
-                ? "bg-slate-600 text-slate-100 shadow-lg"
-                : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/50"
-            )}
-          >
-            <User size={16} weight={config.type === "human" ? "fill" : "regular"} />
-            Human
-          </button>
-          <button
-            onClick={() => handleTypeToggle("llm")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-              config.type === "llm"
-                ? "bg-indigo-500/30 text-indigo-200 shadow-lg ring-1 ring-indigo-400/40"
-                : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/50"
-            )}
-          >
-            <Robot size={16} weight={config.type === "llm" ? "fill" : "regular"} />
-            AI
-          </button>
-        </div>
-      </div>
-
-      {/* LLM Configuration */}
-      <AnimatePresence>
-        {config.type === "llm" && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-visible mt-5"
-          >
-            <div className="relative">
-              <button
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="w-full flex items-center justify-between gap-4 px-5 py-3.5 rounded-2xl bg-slate-950/70 hover:bg-slate-900/80 shadow-md shadow-black/40 transition-all duration-200 text-left group"
-              >
-                {config.provider ? (
-                  <div className="flex items-center gap-4">
-                    <ProviderLogo providerId={config.provider} size={28} />
-                    <div className="flex flex-col">
-                      <span className="text-base font-semibold text-slate-200">
-                        {config.providerName || config.provider}
-                      </span>
-                      <span className="text-sm text-slate-500">{config.model}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-base text-slate-400">Select AI Provider...</span>
-                )}
-                <CaretDown
-                  size={18}
-                  weight="bold"
-                  className={cn(
-                    "text-slate-400 transition-all duration-200 group-hover:text-slate-300",
-                    showDropdown && "rotate-180 text-indigo-400"
-                  )}
-                />
-              </button>
-
-              <AnimatePresence>
-                {showDropdown && (
-                  <LLMProviderDropdown
-                    config={config}
-                    onChange={onChange}
-                    onClose={() => setShowDropdown(false)}
-                  />
-                )}
-              </AnimatePresence>
+      {/* Left accent bar */}
+      <div className="flex">
+        <div 
+          className="w-1 flex-shrink-0"
+          style={{ background: `linear-gradient(180deg, ${color.primary}, ${color.dark})` }}
+        />
+        
+        <div className="flex-1 p-4">
+          {/* Header row */}
+          <div className="flex items-center gap-3">
+            {/* Player Badge */}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base shadow-lg flex-shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${color.primary}, ${color.dark})`,
+                color: "white",
+                boxShadow: `0 4px 12px ${color.primary}40`,
+              }}
+            >
+              {playerId + 1}
             </div>
 
-            {/* Endpoint & API key configuration */}
-            {showApiKeySection && (
-              <div className="mt-4 space-y-3">
-                {/* Model selector (if provider defines models) */}
-                {modelOptions.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-slate-400">Model</span>
-                    </div>
-                    <div className="relative">
-                      {config.provider && (
-                        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-                          <ProviderLogo providerId={config.provider} size={14} />
-                        </div>
-                      )}
-                      <select
-                        value={selectedModel}
-                        onChange={(e) =>
-                          onChange({
-                            ...config,
-                            model: e.target.value,
-                          })
-                        }
-                        className={cn(
-                          "w-full px-3 py-2.5 rounded-xl bg-slate-900/80 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] appearance-none",
-                          config.provider && "pl-10"
-                        )}
-                      >
-                        {modelOptions.map((model) => (
-                          <option
-                            key={model}
-                            value={model}
-                            className="bg-slate-900 text-slate-100"
-                          >
-                            {model}
-                          </option>
-                        ))}
-                      </select>
-                      <CaretDown
-                        size={14}
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Endpoint selector (if provider defines endpoints) */}
-                {endpointOptions.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-slate-400">Model API endpoint</span>
-                    </div>
-                    <div className="relative">
-                      {config.provider && (
-                        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-                          <ProviderLogo providerId={config.provider} size={14} />
-                        </div>
-                      )}
-                      <select
-                        value={effectiveEndpoint}
-                        onChange={(e) =>
-                          onChange({
-                            ...config,
-                            apiEndpoint: e.target.value,
-                          })
-                        }
-                        className={cn(
-                          "w-full px-3 py-2.5 rounded-xl bg-slate-900/80 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] appearance-none",
-                          config.provider && "pl-10"
-                        )}
-                      >
-                        {endpointOptions.map((opt) => (
-                          <option
-                            key={opt.id}
-                            value={opt.url}
-                            className="bg-slate-900 text-slate-100"
-                          >
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <CaretDown
-                        size={14}
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* API key field */}
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-slate-400">API key</span>
-                  {(apiKeyStatus !== "idle" || apiKey) && (
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]",
-                        apiKeyStatus === "valid" && "bg-emerald-500/10 text-emerald-300",
-                        apiKeyStatus === "invalid" && "bg-amber-500/10 text-amber-300",
-                        apiKeyStatus === "checking" && "bg-indigo-500/10 text-indigo-200",
-                        apiKeyStatus === "idle" && "bg-slate-800/70 text-slate-300"
-                      )}
-                    >
-                      <Key
-                        size={10}
-                        className={
-                          apiKeyStatus === "valid"
-                            ? "text-emerald-400"
-                            : apiKeyStatus === "invalid"
-                              ? "text-amber-400"
-                              : "text-indigo-300"
-                        }
-                      />
-                      {apiKeyStatusMessage ||
-                        (apiKeyStatus === "valid"
-                          ? "Verified"
-                          : apiKeyStatus === "invalid"
-                            ? "Check key"
-                            : apiKeyStatus === "checking"
-                              ? "Verifying..."
-                              : apiKeyValid
-                                ? "Looks good"
-                                : "Enter key")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={apiKey}
-                    onChange={(e) =>
-                      onChange({
-                        ...config,
-                        apiKey: e.target.value,
-                        apiKeyStatus: "idle",
-                        apiKeyMessage: "",
-                      })
-                    }
-                    placeholder="Paste your API key - stored only in this browser"
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyApiKey}
-                    disabled={isVerifying || (!apiKey && apiKeyRequired) || !config.provider}
-                    className={cn(
-                      "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-[0_6px_14px_rgba(0,0,0,0.4)]",
-                      isVerifying
-                        ? "bg-indigo-500/30 text-indigo-100"
-                        : "bg-slate-800/70 text-slate-200 hover:bg-slate-700/70",
-                      (isVerifying || (!apiKey && apiKeyRequired) || !config.provider) &&
-                        "opacity-60 cursor-not-allowed hover:bg-slate-800/70"
-                    )}
-                  >
-                    <Key size={14} />
-                    {isVerifying ? "Verifying..." : "Verify"}
-                  </button>
-                </div>
-                {apiKeyRequired && (
-                  <p
-                    className={cn(
-                      "mt-1.5 text-[11px]",
-                      apiKeyValid ? "text-emerald-400" : "text-amber-300"
-                    )}
-                  >
-                    {apiKeyStatusMessage || apiKeyMessage}
-                  </p>
-                )}
-                {!apiKeyRequired && apiKeyStatusMessage && (
-                  <p className="mt-1.5 text-[11px] text-slate-400">{apiKeyStatusMessage}</p>
-                )}
+            {/* Player Info */}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-slate-100">Player {playerId + 1}</div>
+              <div className="text-[12px] text-slate-400 truncate mt-0.5">
+                {config.type === "human" 
+                  ? "Human Player" 
+                  : config.provider 
+                    ? `${config.providerName || config.provider} · ${config.model}`
+                    : "Select AI Provider"
+                }
               </div>
+            </div>
+
+            {/* Type Toggle */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/60 flex-shrink-0">
+              <button
+                onClick={() => handleTypeToggle("human")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all duration-200",
+                  config.type === "human"
+                    ? "bg-slate-700/80 text-slate-100 shadow-md"
+                    : "text-slate-500 hover:text-slate-300"
+                )}
+              >
+                <User size={14} weight={config.type === "human" ? "fill" : "regular"} />
+                Human
+              </button>
+              <button
+                onClick={() => handleTypeToggle("llm")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all duration-200",
+                  config.type === "llm"
+                    ? "bg-indigo-500/25 text-indigo-200 shadow-md ring-1 ring-indigo-400/30"
+                    : "text-slate-500 hover:text-slate-300"
+                )}
+              >
+                <Robot size={14} weight={config.type === "llm" ? "fill" : "regular"} />
+                AI
+              </button>
+            </div>
+          </div>
+
+          {/* LLM Configuration */}
+          <AnimatePresence>
+            {config.type === "llm" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-visible mt-4"
+              >
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left group"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6))",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    {config.provider ? (
+                      <div className="flex items-center gap-3">
+                        <ProviderLogo providerId={config.provider} size={22} />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-200">
+                            {config.providerName || config.provider}
+                          </span>
+                          <span className="text-[11px] text-slate-500">{config.model}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">Select AI Provider...</span>
+                    )}
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={cn(
+                        "text-slate-500 transition-all duration-200 group-hover:text-slate-300",
+                        showDropdown && "rotate-180 text-indigo-400"
+                      )}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {showDropdown && (
+                      <LLMProviderDropdown
+                        config={config}
+                        onChange={onChange}
+                        onClose={() => setShowDropdown(false)}
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Endpoint & API key configuration */}
+                {showApiKeySection && (
+                  <div className="mt-3 space-y-3">
+                    {/* Model selector */}
+                    {modelOptions.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                          Model
+                        </div>
+                        <div className="relative">
+                          {config.provider && (
+                            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 flex items-center z-10 bg-slate-800/50 rounded-md p-0.5">
+                              <ProviderLogo providerId={config.provider} size={16} />
+                            </div>
+                          )}
+                          <select
+                            value={selectedModel}
+                            onChange={(e) =>
+                              onChange({
+                                ...config,
+                                model: e.target.value,
+                              })
+                            }
+                            className={cn(
+                              "w-full px-3 py-2.5 rounded-xl bg-slate-900/90 text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 appearance-none transition-all cursor-pointer",
+                              "shadow-[inset_0_0_0_1px_rgba(71,85,105,0.3)]",
+                              config.provider && "pl-11"
+                            )}
+                          >
+                            {modelOptions.map((model) => (
+                              <option key={model} value={model} className="bg-slate-900">
+                                {model}
+                              </option>
+                            ))}
+                          </select>
+                          <CaretDown
+                            size={12}
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Endpoint selector */}
+                    {endpointOptions.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                          Endpoint
+                        </div>
+                        <div className="relative">
+                          <select
+                            value={effectiveEndpoint}
+                            onChange={(e) =>
+                              onChange({
+                                ...config,
+                                apiEndpoint: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900/80 text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 appearance-none transition-all shadow-[inset_0_0_0_1px_rgba(71,85,105,0.3)]"
+                          >
+                            {endpointOptions.map((opt) => (
+                              <option key={opt.id} value={opt.url} className="bg-slate-900">
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <CaretDown
+                            size={12}
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* API key field */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                          API Key
+                        </span>
+                        {(apiKeyStatus !== "idle" || apiKey) && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]",
+                              apiKeyStatus === "valid" && "bg-emerald-500/15 text-emerald-300",
+                              apiKeyStatus === "invalid" && "bg-amber-500/15 text-amber-300",
+                              apiKeyStatus === "checking" && "bg-indigo-500/15 text-indigo-200",
+                              apiKeyStatus === "idle" && "bg-slate-800/60 text-slate-400"
+                            )}
+                          >
+                            <Key size={10} />
+                            {apiKeyStatusMessage ||
+                              (apiKeyStatus === "valid"
+                                ? "Verified"
+                                : apiKeyStatus === "invalid"
+                                  ? "Check key"
+                                  : apiKeyStatus === "checking"
+                                    ? "Verifying..."
+                                    : apiKeyValid
+                                      ? "Looks good"
+                                      : "Enter key")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          autoComplete="off"
+                          value={apiKey}
+                          onChange={(e) =>
+                            onChange({
+                              ...config,
+                              apiKey: e.target.value,
+                              apiKeyStatus: "idle",
+                              apiKeyMessage: "",
+                            })
+                          }
+                          placeholder="Paste your API key"
+                          className="flex-1 px-3 py-2 rounded-xl bg-slate-900/80 text-[13px] text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-[inset_0_0_0_1px_rgba(71,85,105,0.3)]"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleVerifyApiKey}
+                          disabled={isVerifying || (!apiKey && apiKeyRequired) || !config.provider}
+                        >
+                          <Key size={12} />
+                          {isVerifying ? "..." : "Verify"}
+                        </Button>
+                      </div>
+                      {apiKeyRequired && (
+                        <p
+                          className={cn(
+                            "mt-1.5 text-[11px]",
+                            apiKeyValid ? "text-emerald-400/80" : "text-amber-300/80"
+                          )}
+                        >
+                          {apiKeyStatusMessage || apiKeyMessage}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -743,35 +638,18 @@ PlayerConfigCard.propTypes = {
 };
 
 // ============================================
-// Large Board Preview
+// Board Preview Component
 // ============================================
-function LargeBoardPreview({ board, bbox, onRerandomize }) {
+function BoardPreview({ board, bbox, onRerandomize }) {
   return (
-    <div className="h-full flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
-            <Hexagon size={20} weight="fill" className="text-amber-400" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-200">Board Preview</h3>
-            <p className="text-xs text-slate-500">Click shuffle to generate a new map</p>
-          </div>
-        </div>
-        <button
-          onClick={onRerandomize}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800/90 transition-all shadow-lg shadow-black/30"
-        >
-          <Shuffle size={16} />
-          Shuffle
-        </button>
-      </div>
-
-      {/* Board */}
+    <div className="h-full flex flex-col">
+      {/* Board container */}
       <div
-        className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl shadow-black/40"
-        style={{ height: "min(52vh, 440px)", minHeight: "320px" }}
+        className="relative w-full rounded-2xl overflow-hidden flex-1"
+        style={{
+          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.4))",
+          minHeight: "280px",
+        }}
       >
         <svg
           width="100%"
@@ -781,8 +659,8 @@ function LargeBoardPreview({ board, bbox, onRerandomize }) {
           className="absolute inset-0 w-full h-full"
         >
           <defs>
-            <filter id="hexShadowLarge" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.4" />
+            <filter id="hexShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.35" />
             </filter>
           </defs>
           {board.tiles.map((t, idx) => {
@@ -794,18 +672,18 @@ function LargeBoardPreview({ board, bbox, onRerandomize }) {
                 <path
                   d={path}
                   fill={resourceColor(t.resource)}
-                  stroke="rgba(0,0,0,0.4)"
-                  strokeWidth={1.5}
-                  filter="url(#hexShadowLarge)"
+                  stroke="rgba(0,0,0,0.35)"
+                  strokeWidth={1}
+                  filter="url(#hexShadow)"
                 />
                 {t.number && t.resource !== "desert" && (
                   <>
                     <circle
                       cx={t.center.x}
                       cy={t.center.y}
-                      r={12}
-                      fill="#1e293b"
-                      stroke={isHot ? "rgba(239,68,68,0.5)" : "rgba(51,65,85,0.5)"}
+                      r={10}
+                      fill="#0f172a"
+                      stroke={isHot ? "rgba(239,68,68,0.5)" : "rgba(51,65,85,0.4)"}
                       strokeWidth={1}
                     />
                     <text
@@ -813,8 +691,8 @@ function LargeBoardPreview({ board, bbox, onRerandomize }) {
                       y={t.center.y + 1}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fill={isHot ? "#ef4444" : "#f8fafc"}
-                      fontSize="10"
+                      fill={isHot ? "#ef4444" : "#e2e8f0"}
+                      fontSize="9"
                       fontWeight="bold"
                       fontFamily="system-ui, sans-serif"
                     >
@@ -827,18 +705,26 @@ function LargeBoardPreview({ board, bbox, onRerandomize }) {
           })}
         </svg>
       </div>
+
+      {/* Shuffle button */}
+      <div className="flex justify-center mt-3">
+        <Button variant="secondary" size="sm" onClick={onRerandomize}>
+          <Shuffle size={14} />
+          Shuffle Board
+        </Button>
+      </div>
     </div>
   );
 }
 
-LargeBoardPreview.propTypes = {
+BoardPreview.propTypes = {
   board: PropTypes.object.isRequired,
   bbox: PropTypes.object.isRequired,
   onRerandomize: PropTypes.func.isRequired,
 };
 
 // ============================================
-// Main Setup Screen Component (Two-Column Layout)
+// Main Setup Screen Component
 // ============================================
 export function SetupScreen({ 
   numPlayers, 
@@ -853,7 +739,6 @@ export function SetupScreen({
   const MIN_PLAYERS = 2;
   const MAX_PLAYERS = 4;
 
-  // Initialize configs if needed
   const configs = playerConfigs.length >= numPlayers 
     ? playerConfigs 
     : Array.from({ length: numPlayers }, (_, i) => 
@@ -907,93 +792,73 @@ export function SetupScreen({
   });
 
   return (
-    <div className="min-h-screen px-4 py-6 lg:px-8 lg:py-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-sm text-slate-200">
-      {/* Background decoration */}
+    <div className="min-h-screen p-4 lg:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/3 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-amber-500/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-indigo-500/[0.04] rounded-full blur-[120px]" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.4 }}
         className="relative z-10 w-full max-w-6xl mx-auto"
       >
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.div
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             className="inline-flex items-center gap-3 mb-2"
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-500/30">
-              <Hexagon size={24} weight="fill" className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+              <Hexagon size={20} weight="fill" className="text-white" />
             </div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-slate-100">Settlers of Catan</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-slate-100">Settlers of Catan</h1>
           </motion.div>
-          <p className="text-slate-500 text-sm">Configure players and start your game</p>
+          <p className="text-slate-500 text-sm">Configure your game and players</p>
         </div>
 
-        {/* Main Content - Two Column Layout */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-          {/* Left Column - Configuration */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="rounded-3xl p-6 lg:p-7 w-full lg:flex-1 min-w-0"
-            style={{
-              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.88))",
-              boxShadow: "0 25px 60px -14px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.03)",
-            }}
-          >
-            <div className="h-full flex flex-col">
+        {/* Main Layout */}
+        <div className="flex flex-col gap-5">
+          {/* Configuration */}
+          <Card>
+            <CardContent className="p-4 lg:p-5 space-y-4">
               {/* Player Count Section */}
-              <div className="mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-                    <Users size={18} className="text-indigo-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-200">Number of Players</h3>
-                    <p className="text-xs text-slate-500">Select how many will compete</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+              <Collapsible
+                title="Number of Players"
+                icon={Users}
+                defaultOpen={true}
+                variant="elevated"
+              >
+                <div className="grid grid-cols-3 gap-2">
                   {Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i).map((n) => (
                     <button
                       key={n}
                       onClick={() => handlePlayerCountChange(n)}
                       className={cn(
-                        "py-3.5 rounded-xl font-semibold text-base transition-all duration-200",
+                        "py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
                         numPlayers === n
-                          ? "bg-slate-900/80 text-slate-50 shadow-lg shadow-indigo-500/25"
-                          : "bg-slate-900/60 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200"
+                          ? "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-500/10"
+                          : "bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
                       )}
                     >
                       {n} Players
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Divider */}
-              <div className="h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent my-2" />
+              </Collapsible>
 
               {/* Player Configuration Section */}
-              <div className="flex-1 overflow-y-auto">
-        <div className="flex items-center gap-3 mb-4 mt-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-            <Gear size={20} className="text-emerald-400" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-200">Player Configuration</h3>
-            <p className="text-xs text-slate-500">Choose human or AI for each player</p>
-          </div>
-        </div>
-                <div className="space-y-4">
+              <Collapsible
+                title="Player Configuration"
+                icon={Gear}
+                badge={numPlayers}
+                defaultOpen={true}
+                variant="elevated"
+              >
+                <div className="space-y-3">
                   {Array.from({ length: numPlayers }, (_, i) => (
                     <PlayerConfigCard
                       key={i}
@@ -1003,74 +868,64 @@ export function SetupScreen({
                     />
                   ))}
                 </div>
-              </div>
-
-              {/* Divider */}
-              <div className="h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent my-6" />
+              </Collapsible>
 
               {/* Game Summary & Start */}
-              <div>
-                {/* Summary Pills */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/60 text-sm">
-                    <GameController size={16} className="text-slate-400" />
+              <div className="pt-2">
+                {/* Summary */}
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/50 text-[12px]">
+                    <GameController size={14} className="text-slate-400" />
                     <span className="text-slate-300 font-medium">{numPlayers} players</span>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/60 text-sm">
-                    <User size={16} className="text-blue-400" />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/50 text-[12px]">
+                    <User size={14} className="text-blue-400" />
                     <span className="text-slate-300 font-medium">{humanCount} human</span>
                   </div>
                   {aiCount > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/20 text-sm">
-                      <Robot size={16} className="text-indigo-400" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/15 text-[12px]">
+                      <Robot size={14} className="text-indigo-400" />
                       <span className="text-indigo-300 font-medium">{aiCount} AI</span>
                     </div>
                   )}
                 </div>
 
                 {!canStart && aiCount > 0 && (
-                  <div className="flex items-center gap-2 mb-3 text-xs text-amber-300">
-                    <WarningCircle size={14} className="text-amber-400" />
-                    <span>
-                      Configure provider, model, and API key for all AI players to enable starting the game.
-                    </span>
+                  <div className="flex items-start gap-2 mb-3 text-[12px] text-amber-300/90 p-3 rounded-xl bg-amber-500/10">
+                    <WarningCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                    <span>Configure provider, model, and API key for all AI players to start.</span>
                   </div>
                 )}
 
-                {/* Start Game Button */}
-                <button
+                {/* Start Button */}
+                <Button
+                  variant="success"
+                  size="lg"
                   onClick={onStart}
                   disabled={!canStart}
-                className={cn(
-                  "w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-base text-white transition-all hover:scale-[1.02] active:scale-[0.98]",
-                  !canStart && "opacity-60 cursor-not-allowed hover:scale-100"
-                )}
-                style={{
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    boxShadow: "0 12px 30px -5px rgba(16, 185, 129, 0.4)",
-                  }}
+                  className="w-full"
                 >
-                  <Play size={20} weight="fill" />
+                  <Play size={18} weight="fill" />
                   Start Game
-                  <Sparkle size={18} weight="fill" className="text-emerald-200" />
-                </button>
+                  <Sparkle size={16} weight="fill" className="text-emerald-200" />
+                </Button>
               </div>
-            </div>
-          </motion.div>
+            </CardContent>
+          </Card>
 
-          {/* Right Column - Board Preview */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
-            className="rounded-3xl p-5 lg:p-6 w-full lg:w-[420px] xl:w-[520px] flex-shrink-0 lg:sticky lg:top-8"
-            style={{
-              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.9))",
-              boxShadow: "0 25px 60px -14px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04)",
-            }}
-          >
-            <LargeBoardPreview board={board} bbox={bbox} onRerandomize={onRerandomize} />
-          </motion.div>
+          {/* Board Preview */}
+          <Card>
+            <CardContent className="p-4 lg:p-5">
+              <Collapsible
+                title="Board Preview"
+                icon={Hexagon}
+                defaultOpen={true}
+                variant="elevated"
+              >
+                <BoardPreview board={board} bbox={bbox} onRerandomize={onRerandomize} />
+              </Collapsible>
+            </CardContent>
+          </Card>
         </div>
       </motion.div>
     </div>
