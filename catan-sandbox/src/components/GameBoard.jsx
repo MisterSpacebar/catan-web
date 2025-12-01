@@ -1,16 +1,14 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  X, 
   MapPin, 
   House, 
   Buildings, 
   Path, 
   Info,
-  Crosshair,
 } from "@phosphor-icons/react";
-import { cn, resourceColor, prettyResource, resourceEmoji } from "../lib/utils";
+import { cn } from "../lib/utils";
 import { getPlayerColor } from "../lib/colors";
 
 const TILE_SIZE = 48;
@@ -52,114 +50,6 @@ function getTileColors(resource) {
   return colors[resource] || colors.desert;
 }
 
-// Floating tooltip with glassmorphism
-function TileTooltip({ tile, position, onClose, isSticky }) {
-  const isHot = tile.number === 6 || tile.number === 8;
-  const probDots = PROBABILITY_DOTS[tile.number] || 0;
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 6, scale: 0.96 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className={cn(
-        "absolute z-50 pointer-events-auto",
-        isSticky && "ring-1 ring-indigo-500/40"
-      )}
-      style={{
-        left: position.x,
-        top: position.y,
-        transform: "translate(-50%, -100%)",
-        marginTop: -10,
-      }}
-    >
-      <div className="relative min-w-[180px] rounded-xl overflow-hidden shadow-2xl shadow-black/50">
-        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" />
-        
-        <div className="relative p-3">
-          {isSticky && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="absolute -top-1 -right-1 p-1 rounded-full bg-slate-700/80 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
-            >
-              <X size={10} weight="bold" />
-            </button>
-          )}
-
-          {/* Header with resource info */}
-          <div className="flex items-center gap-2.5 mb-2.5">
-            <div
-              className="w-9 h-9 rounded-lg shadow-lg flex items-center justify-center text-lg"
-              style={{ 
-                background: `linear-gradient(135deg, ${getTileColors(tile.resource).light}, ${getTileColors(tile.resource).dark})`,
-              }}
-            >
-              {resourceEmoji(tile.resource)}
-            </div>
-            <div>
-              <div className="text-slate-200 font-medium text-sm">{prettyResource(tile.resource)}</div>
-              <div className="text-slate-500 text-xs">Resource Tile</div>
-            </div>
-          </div>
-
-          {/* Roll number section */}
-          {tile.number && (
-            <div className="flex items-center justify-between p-2 rounded-lg bg-black/30 mb-2">
-              <div className="flex items-center gap-1.5">
-                <Crosshair size={14} className={isHot ? "text-red-400" : "text-slate-500"} />
-                <span className="text-slate-500 text-xs">Roll</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={cn(
-                  "text-xl font-bold font-mono",
-                  isHot ? "text-red-400" : "text-slate-200"
-                )}>
-                  {tile.number}
-                </span>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: probDots }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-1 h-1 rounded-full",
-                        isHot ? "bg-red-400" : "bg-slate-500"
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {tile.number && (
-            <div className="text-[10px] text-slate-600 text-center">
-              {((probDots / 36) * 100).toFixed(1)}% chance
-            </div>
-          )}
-
-          {tile.hasRobber && (
-            <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-amber-500/10 text-amber-400 mt-2">
-              <MapPin size={14} />
-              <span className="text-xs font-medium">Robber Here</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-TileTooltip.propTypes = {
-  tile: PropTypes.object.isRequired,
-  position: PropTypes.object.isRequired,
-  onClose: PropTypes.func.isRequired,
-  isSticky: PropTypes.bool,
-};
-
 // Main GameBoard Component
 export function GameBoard({
   board,
@@ -171,41 +61,7 @@ export function GameBoard({
   onClickEdge,
   bbox,
 }) {
-  const [hoveredTile, setHoveredTile] = useState(null);
-  const [stickyTile, setStickyTile] = useState(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-
   const { minX, minY, width, height } = bbox;
-
-  const handleTileHover = (tile, idx, event) => {
-    if (!stickyTile) {
-      const rect = event.target.ownerSVGElement.getBoundingClientRect();
-      const svgPoint = {
-        x: ((tile.center.x - minX) / width) * rect.width,
-        y: ((tile.center.y - minY) / height) * rect.height,
-      };
-      setTooltipPosition(svgPoint);
-      setHoveredTile({ ...tile, idx });
-    }
-  };
-
-  const handleTileClick = (tile, idx, event) => {
-    if (stickyTile?.idx === idx) {
-      setStickyTile(null);
-      setHoveredTile(null);
-    } else {
-      const rect = event.target.ownerSVGElement.getBoundingClientRect();
-      const svgPoint = {
-        x: ((tile.center.x - minX) / width) * rect.width,
-        y: ((tile.center.y - minY) / height) * rect.height,
-      };
-      setTooltipPosition(svgPoint);
-      setStickyTile({ ...tile, idx });
-    }
-    onClickHex(idx);
-  };
-
-  const activeTile = stickyTile || hoveredTile;
 
   const svgDefs = useMemo(() => (
     <defs>
@@ -263,22 +119,19 @@ export function GameBoard({
           {/* Tiles */}
           {board.tiles.map((t, idx) => {
             const isSelected = selection?.type === "hex" && selection?.id === idx;
-            const isHovered = activeTile?.idx === idx;
             const isHot = t.number === 6 || t.number === 8;
             
             return (
               <g
                 key={idx}
-                onClick={(e) => handleTileClick(t, idx, e)}
-                onMouseEnter={(e) => handleTileHover(t, idx, e)}
-                onMouseLeave={() => !stickyTile && setHoveredTile(null)}
+                onClick={() => onClickHex(idx)}
                 style={{ cursor: "pointer" }}
               >
                 <path
                   d={hexPolygonPath(t.center, TILE_SIZE)}
                   fill={t.resource === "water" ? "url(#waterGradient)" : `url(#${t.resource}Gradient)`}
-                  stroke={isHovered || isSelected ? "#6366f1" : "rgba(0,0,0,0.3)"}
-                  strokeWidth={isHovered || isSelected ? 2 : 1.5}
+                  stroke={isSelected ? "#6366f1" : "rgba(0,0,0,0.3)"}
+                  strokeWidth={isSelected ? 2 : 1.5}
                   filter="url(#tileShadow)"
                   className="transition-all duration-150"
                   style={{ opacity: isSelected ? 0.9 : 1 }}
@@ -550,20 +403,6 @@ export function GameBoard({
             );
           })}
         </svg>
-
-        <AnimatePresence>
-          {activeTile && (
-            <TileTooltip
-              tile={activeTile}
-              position={tooltipPosition}
-              onClose={() => {
-                setStickyTile(null);
-                setHoveredTile(null);
-              }}
-              isSticky={!!stickyTile}
-            />
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Mode indicator */}

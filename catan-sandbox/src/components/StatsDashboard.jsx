@@ -51,17 +51,118 @@ import { PlayerLabel } from "./ui/PlayerChip";
 
 // Use modular rank colors from colors.js
 
-// Custom tooltip for charts
-function CustomTooltip({ active, payload, label }) {
+// Provider Avatar component for tooltips
+function ProviderAvatar({ providerId, size = 14 }) {
+  const IconComponent = PROVIDER_ICONS[providerId];
+  const color = PROVIDER_COLORS[providerId] || "#666";
+  const useWhiteLogo = WHITE_LOGO_PROVIDERS.includes(providerId);
+  
+  if (IconComponent) {
+    if (!useWhiteLogo && IconComponent.Color) {
+      return <IconComponent.Color size={size} />;
+    }
+    return <IconComponent size={size} style={{ color: useWhiteLogo ? "#ffffff" : color }} />;
+  }
+  
+  return (
+    <div
+      className="rounded flex items-center justify-center font-bold text-white text-[8px]"
+      style={{ width: size, height: size, background: color }}
+    >
+      {providerId?.slice(0, 2).toUpperCase() || "AI"}
+    </div>
+  );
+}
+
+ProviderAvatar.propTypes = {
+  providerId: PropTypes.string,
+  size: PropTypes.number,
+};
+
+// Custom tooltip for charts with player info
+function CustomTooltip({ active, payload, label, players, labelPrefix }) {
   if (active && payload && payload.length) {
+    // Check for custom tooltipLabel in payload, otherwise use label with optional prefix
+    const customLabel = payload[0]?.payload?.tooltipLabel;
+    const formattedLabel = customLabel || (labelPrefix ? `${labelPrefix}${label}` : label);
+    
     return (
-      <div className="bg-slate-900/95 backdrop-blur-lg px-3 py-2 rounded-lg shadow-xl border border-slate-800/50">
-        <p className="text-xs text-slate-400 mb-1">{label}</p>
-        {payload.map((entry, index) => (
-          <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
-            {entry.name}: {entry.value}
-          </p>
-        ))}
+      <div className="rounded-2xl overflow-hidden shadow-2xl shadow-black/50" style={{
+        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95))",
+        border: "1px solid rgba(71, 85, 105, 0.4)",
+        backdropFilter: "blur(12px)",
+      }}>
+        {/* Header */}
+        <div className="px-3 py-2 border-b border-slate-700/50">
+          <p className="text-xs font-semibold text-slate-300">{formattedLabel}</p>
+        </div>
+        
+        {/* Player entries */}
+        <div className="px-3 py-2 space-y-2">
+          {payload.map((entry, index) => {
+            const player = players?.find(p => p.name === entry.name);
+            const playerColor = getPlayerColor(player?.id ?? index);
+            
+            return (
+              <div 
+                key={index} 
+                className="flex items-center gap-2 p-2 rounded-xl"
+                style={{
+                  background: `linear-gradient(135deg, ${playerColor.primary}15, ${playerColor.primary}08)`,
+                  border: `1px solid ${playerColor.primary}25`,
+                }}
+              >
+                {/* Left accent */}
+                <div 
+                  className="w-1 h-8 rounded-full flex-shrink-0"
+                  style={{ background: `linear-gradient(180deg, ${playerColor.primary}, ${playerColor.primary}80)` }}
+                />
+                
+                {/* Player info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {/* Player label chip - FIRST */}
+                    <div 
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${playerColor.primary}30, ${playerColor.primary}20)`,
+                        color: playerColor.primary,
+                      }}
+                    >
+                      {playerColor.label}
+                    </div>
+                    
+                    {/* Provider icon - SECOND */}
+                    {player?.provider && (
+                      <div className="w-5 h-5 rounded-md bg-slate-800/80 flex items-center justify-center flex-shrink-0">
+                        <ProviderAvatar providerId={player.provider} size={12} />
+                      </div>
+                    )}
+                    
+                    {/* Player name */}
+                    <span className="text-xs font-medium text-slate-200 truncate">{entry.name}</span>
+                  </div>
+                  
+                  {/* Provider model */}
+                  {player?.providerModel && (
+                    <div className="flex items-center gap-1 mt-0.5 ml-7">
+                      <Robot size={10} className="text-indigo-400" />
+                      <span className="text-[10px] text-indigo-400/80 truncate">{player.providerModel}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Value */}
+                <div 
+                  className="text-sm font-bold flex-shrink-0"
+                  style={{ color: playerColor.primary }}
+                >
+                  {entry.value}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -72,6 +173,8 @@ CustomTooltip.propTypes = {
   active: PropTypes.bool,
   payload: PropTypes.array,
   label: PropTypes.string,
+  players: PropTypes.array,
+  labelPrefix: PropTypes.string,
 };
 
 // Stat card with animated bar
@@ -161,7 +264,8 @@ function ResourceDistributionChart({ players }) {
     return resources.map(resource => {
       const entry = { 
         resource: resourceEmoji(resource), 
-        name: prettyResource(resource) 
+        name: prettyResource(resource),
+        tooltipLabel: `${prettyResource(resource)} (${resourceEmoji(resource)})`,
       };
       players.forEach(player => {
         entry[player.name] = player.resources?.[resource] || 0;
@@ -184,7 +288,7 @@ function ResourceDistributionChart({ players }) {
           axisLine={{ stroke: "#334155" }}
           tickLine={false}
         />
-        <RechartsTooltip content={<CustomTooltip />} />
+        <RechartsTooltip content={<CustomTooltip players={players} />} />
         {players.map((player, idx) => (
           <Bar
             key={player.id}
@@ -232,7 +336,7 @@ function VPProgressChart({ players, gameStats }) {
           tickLine={false}
           domain={[0, 10]}
         />
-        <RechartsTooltip content={<CustomTooltip />} />
+        <RechartsTooltip content={<CustomTooltip players={players} labelPrefix="Turn: " />} />
         {players.map((player) => (
           <Line
             key={player.id}
@@ -254,6 +358,32 @@ VPProgressChart.propTypes = {
 };
 
 // Player efficiency radar
+// Custom tooltip for radar chart
+function RadarTooltip({ active, payload }) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div 
+        className="px-3 py-2 rounded-xl shadow-xl"
+        style={{
+          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95))",
+          border: "1px solid rgba(71, 85, 105, 0.4)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <span className="text-xs font-medium text-slate-200">{data.stat}: </span>
+        <span className="text-sm font-bold text-slate-100">{data.value}</span>
+      </div>
+    );
+  }
+  return null;
+}
+
+RadarTooltip.propTypes = {
+  active: PropTypes.bool,
+  payload: PropTypes.array,
+};
+
 function PlayerRadarChart({ player, maxValues }) {
   const data = useMemo(() => [
     { stat: "VP", value: player.victoryPoints || 0, fullMark: maxValues.vp },
@@ -286,6 +416,7 @@ function PlayerRadarChart({ player, maxValues }) {
           fillOpacity={0.3}
           strokeWidth={2}
         />
+        <RechartsTooltip content={<RadarTooltip />} />
       </RadarChart>
     </ResponsiveContainer>
   );
@@ -297,19 +428,29 @@ PlayerRadarChart.propTypes = {
 };
 
 // Resource pie chart
+// Resource colors for pie chart
+const RESOURCE_PIE_COLORS = {
+  wood: "#22c55e",    // Green
+  brick: "#ef4444",   // Red
+  wheat: "#eab308",   // Yellow
+  sheep: "#4ade80",   // Light green
+  ore: "#6b7280",     // Gray
+};
+
 function ResourcePieChart({ player }) {
   const data = useMemo(() => {
     const resources = player.resources || {};
-    return Object.entries(resources)
-      .filter(([, v]) => v > 0)
-      .map(([resource, value]) => ({
+    const resourceOrder = ["wood", "brick", "wheat", "sheep", "ore"];
+    return resourceOrder
+      .filter(resource => (resources[resource] || 0) > 0)
+      .map(resource => ({
+        key: resource,
         name: prettyResource(resource),
-        value,
+        value: resources[resource] || 0,
         emoji: resourceEmoji(resource),
+        color: RESOURCE_PIE_COLORS[resource],
       }));
   }, [player]);
-
-  const COLORS = ["#22c55e", "#ef4444", "#eab308", "#4ade80", "#6b7280"];
 
   if (data.length === 0) {
     return (
@@ -320,29 +461,44 @@ function ResourcePieChart({ player }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={120}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          innerRadius={25}
-          outerRadius={45}
-          paddingAngle={2}
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <RechartsTooltip 
-          formatter={(value, name, props) => [
-            `${props.payload.emoji} ${value}`,
-            name
-          ]}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="flex items-center gap-3">
+      {/* Pie Chart */}
+      <div className="flex-shrink-0" style={{ width: 80, height: 80 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={18}
+              outerRadius={35}
+              paddingAngle={2}
+              dataKey="value"
+              stroke="none"
+            >
+              {data.map((entry) => (
+                <Cell key={entry.key} fill={entry.color} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Legend */}
+      <div className="flex-1 grid grid-cols-1 gap-1">
+        {data.map((item) => (
+          <div key={item.key} className="flex items-center gap-1.5">
+            <div 
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-[11px]">{item.emoji}</span>
+            <span className="text-[10px] text-slate-400 flex-1 truncate">{item.name}</span>
+            <span className="text-[11px] font-semibold text-slate-200">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
