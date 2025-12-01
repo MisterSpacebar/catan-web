@@ -2,7 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const { CatanGame } = require("./CatanGame");
-const { getLLMAction, DEFAULT_MODEL } = require("./llmAgent");
+const { getLLMAction, DEFAULT_MODEL, resolveApiKey } = require("./llmAgent");
 
 const app = express();
 app.use(cors());
@@ -25,9 +25,10 @@ function buildVerificationRequest(provider, apiKey, apiEndpoint) {
           headers: { Authorization: `Bearer ${apiKey}` },
         },
       };
-    case "anthropic":
+    case "anthropic": {
+      const base = (trimmedEndpoint || "https://api.anthropic.com").replace(/\/v1$/, "");
       return {
-        url: `${trimmedEndpoint || "https://api.anthropic.com"}/v1/models`,
+        url: `${base}/v1/models`,
         options: {
           method: "GET",
           headers: {
@@ -36,6 +37,7 @@ function buildVerificationRequest(provider, apiKey, apiEndpoint) {
           },
         },
       };
+    }
     case "google": {
       const endpoint = trimmedEndpoint || GEMINI_OPENAI_BASE;
       return {
@@ -250,22 +252,26 @@ app.post("/api/games/:id/llm-turn", async (req, res) => {
   if (!game) return res.status(404).json({ error: "Game not found" });
 
   try {
-    const { model, notes, autoApply = true, apiKey, apiEndpoint } = req.body || {};
+    const { model, provider, notes, autoApply = true, apiKey, apiEndpoint } = req.body || {};
     const agentConfig = typeof game.getPlayerAgent === "function"
       ? game.getPlayerAgent(game.current)
       : null;
 
     const llmConfig = {
       ...(agentConfig || {}),
+      provider: provider || agentConfig?.provider || "openai",
       model: model || agentConfig?.model || DEFAULT_MODEL,
       apiKey: apiKey || agentConfig?.apiKey,
       apiEndpoint: apiEndpoint || agentConfig?.apiEndpoint,
     };
 
-    if (!llmConfig.apiKey && !process.env.OPENAI_API_KEY) {
+    const resolvedApiKey = resolveApiKey(llmConfig);
+    llmConfig.apiKey = resolvedApiKey;
+
+    if (!resolvedApiKey) {
       return res.status(400).json({
         ok: false,
-        error: "No API key configured for this AI player.",
+        error: `No API key configured for provider ${llmConfig.provider}.`,
       });
     }
 

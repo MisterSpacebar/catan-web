@@ -1,6 +1,7 @@
 // server/CatanGame.js (full rules engine, server-side source of truth)
 const crypto = require("crypto");
 const { generateBoard } = require("../shared/board.cjs");
+const { resolveApiKey } = require("./llmAgent");
 
 // ----- Constants shared with the front-end (duplicated here for now) -----
 
@@ -229,6 +230,10 @@ class CatanGame {
         typeof requestedModel === "string" && requestedModel.toLowerCase().includes("gpt-4o")
           ? "gpt-4o"
           : requestedModel;
+      const resolvedKey = resolveApiKey({
+        ...config,
+        provider: config.provider || "openai",
+      });
 
       return {
         playerId: i,
@@ -237,7 +242,7 @@ class CatanGame {
         providerName: config.providerName || config.provider || "openai",
         providerCategory: config.providerCategory || null,
         model: normalizedModel,
-        apiKey: config.apiKey || process.env.OPENAI_API_KEY,
+        apiKey: config.apiKey || resolvedKey,
         apiEndpoint: config.apiEndpoint || null,
       };
     });

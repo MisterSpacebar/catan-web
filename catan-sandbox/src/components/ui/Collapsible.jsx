@@ -12,9 +12,17 @@ export function Collapsible({
   iconWeight = "regular",
   badge,
   variant = "default",
-  className 
+  className,
+  headerClassName,
+  onOpenChange,
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const handleToggle = () => {
+    const newState = !isOpen;
+    setIsOpen(newState);
+    onOpenChange?.(newState);
+  };
 
   return (
     <div 
@@ -29,14 +37,15 @@ export function Collapsible({
     >
       {/* Header button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={cn(
           "w-full flex items-center justify-between gap-2",
           "px-3.5 py-2.5",
           "text-left transition-all duration-150",
           "hover:bg-white/[0.03]",
           "focus:outline-none",
-          "group rounded-xl"
+          "group rounded-xl",
+          headerClassName
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -132,6 +141,8 @@ Collapsible.propTypes = {
   badge: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   variant: PropTypes.oneOf(["default", "ghost", "elevated"]),
   className: PropTypes.string,
+  headerClassName: PropTypes.string,
+  onOpenChange: PropTypes.func,
 };
 
 export default Collapsible;

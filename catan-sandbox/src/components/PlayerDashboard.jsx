@@ -19,6 +19,10 @@ import {
   Trophy,
   Robot,
   User,
+  Book,
+  ListChecks,
+  Sparkle,
+  Hammer,
 } from "@phosphor-icons/react";
 import { getPlayerColor } from "../lib/colors";
 import { cn, resourceEmoji } from "../lib/utils";
@@ -29,7 +33,6 @@ import { PlayerDot, PlayerLabel, PlayerTurnChip, PlayerCard } from "./ui/PlayerC
 import { ResourceGrid, ResourceSummary } from "./ui/ResourceChip";
 import { RankBadge, LeaderboardRow } from "./ui/RankBadge";
 import { Button } from "./ui/Button";
-import { QuickRulesPanel } from "./QuickRulesPanel";
 
 // Model icons mapping (fallback for players without provider info)
 const MODEL_ICONS = {
@@ -327,6 +330,21 @@ ActionTools.propTypes = {
   onShowDevCards: PropTypes.func,
 };
 
+// Quick Rules data
+const QUICK_RULES_STEPS = [
+  { title: "Roll & Produce", desc: "Tiles with matching numbers produce resources." },
+  { title: "Trade Smart", desc: "Use harbors or 4:1 bank trades." },
+  { title: "Build & Expand", desc: "Roads → settlements → cities." },
+  { title: "End Turn", desc: "Pass after building/trading." },
+];
+
+const BUILD_COSTS = [
+  { name: "Road", cost: [{ resource: "wood", amount: 1 }, { resource: "brick", amount: 1 }] },
+  { name: "Settlement", cost: [{ resource: "wood", amount: 1 }, { resource: "brick", amount: 1 }, { resource: "wheat", amount: 1 }, { resource: "sheep", amount: 1 }] },
+  { name: "City", cost: [{ resource: "ore", amount: 3 }, { resource: "wheat", amount: 2 }] },
+  { name: "Dev Card", cost: [{ resource: "ore", amount: 1 }, { resource: "wheat", amount: 1 }, { resource: "sheep", amount: 1 }] },
+];
+
 /**
  * Main Player Dashboard Component
  */
@@ -350,6 +368,8 @@ export function PlayerDashboard({
   const [selectedId, setSelectedId] = useState(
     typeof currentPlayer === "number" ? currentPlayer : currentPlayer?.id
   );
+  const [isGameOverviewOpen, setIsGameOverviewOpen] = useState(true);
+  const [isQuickRulesOpen, setIsQuickRulesOpen] = useState(true);
 
   useEffect(() => {
     const incomingId =
@@ -380,6 +400,7 @@ export function PlayerDashboard({
   const friendlyProvider = (id) => {
     if (id === "google") return "Google Gemini";
     if (id === "openai") return "OpenAI";
+    if (id === "anthropic") return "Anthropic";
     return id;
   };
   const normalizeTurnName = (player) => {
@@ -426,16 +447,20 @@ export function PlayerDashboard({
 
   return (
     <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users size={16} className="text-indigo-400" />
-          <span className="text-[14px] font-semibold">Game Overview</span>
-        </CardTitle>
-      </CardHeader>
-
       <CardContent
-        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0 pt-4"
       >
+        {/* Game Overview Section */}
+        <Collapsible
+          title="Game Overview"
+          icon={Users}
+          defaultOpen={isGameOverviewOpen}
+          onOpenChange={setIsGameOverviewOpen}
+          variant="elevated"
+          className="!bg-transparent !shadow-none !p-0"
+          headerClassName="!bg-gradient-to-br !from-slate-800/50 !to-slate-900/60 !rounded-2xl !shadow-lg !shadow-black/20"
+        >
+          <div className="space-y-2.5 pt-2">
         {/* Player Information */}
         <Collapsible
           title="Player Information"
@@ -643,6 +668,7 @@ export function PlayerDashboard({
                             const friendly = (id) => {
                               if (id === "google") return "Gemini";
                               if (id === "openai") return "OpenAI";
+                              if (id === "anthropic") return "Anthropic";
                               return id;
                             };
                             if (!entry.providerName) return friendly(entry.provider);
@@ -676,10 +702,87 @@ export function PlayerDashboard({
             ))}
           </div>
         </Collapsible>
+          </div>
+        </Collapsible>
 
-        <div className="pt-2">
-          <QuickRulesPanel />
-        </div>
+        {/* Quick Rules Section */}
+        <Collapsible
+          title="Quick Rules"
+          icon={Book}
+          defaultOpen={isQuickRulesOpen}
+          onOpenChange={setIsQuickRulesOpen}
+          variant="elevated"
+          className="!bg-transparent !shadow-none !p-0"
+          headerClassName="!bg-gradient-to-br !from-slate-800/50 !to-slate-900/60 !rounded-2xl !shadow-lg !shadow-black/20"
+        >
+          <div className="space-y-2.5 pt-2">
+            {/* How to play */}
+            <Collapsible 
+              title="How to Play" 
+              icon={ListChecks}
+              defaultOpen={true}
+              variant="elevated"
+            >
+              <div className="space-y-2">
+                {QUICK_RULES_STEPS.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
+                      {idx + 1})
+                    </span>
+                    <div>
+                      <div className="text-[13px] text-slate-100 font-semibold">{step.title}</div>
+                      <div className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
+
+            {/* Resources */}
+            <Collapsible 
+              title="Resources" 
+              icon={Sparkle}
+              defaultOpen={true}
+              variant="elevated"
+            >
+              <div className="grid grid-cols-2 gap-1.5">
+                {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
+                  <div key={key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
+                    <span className="text-base drop-shadow-sm">{resourceEmoji(key)}</span>
+                    <span className="text-[13px] text-slate-200 capitalize font-medium">{key}</span>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
+
+            {/* Build costs */}
+            <Collapsible 
+              title="Build Costs" 
+              icon={Hammer}
+              defaultOpen={true}
+              variant="elevated"
+            >
+              <div className="space-y-1.5">
+                {BUILD_COSTS.map((row) => (
+                  <div key={row.name} className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                    <span className="text-[13px] font-semibold text-slate-100">{row.name}</span>
+                    <div className="flex items-center gap-1">
+                      {row.cost.map((c, i) => (
+                        <div
+                          key={`${row.name}-${c.resource}-${i}`}
+                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
+                        >
+                          <span className="text-[13px] drop-shadow-sm">{resourceEmoji(c.resource)}</span>
+                          <span className="text-[11px] font-semibold text-slate-200">{c.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
+          </div>
+        </Collapsible>
       </CardContent>
     </Card>
   );

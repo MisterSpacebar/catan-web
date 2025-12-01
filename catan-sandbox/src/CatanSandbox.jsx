@@ -277,50 +277,68 @@ TradePanel.propTypes = {
 function CollapsibleSidebar({ collapsed, onToggle, side, children, icon: Icon, title }) {
   const isLeft = side === "left";
   
-  return (
-    <motion.aside
-      animate={{ width: collapsed ? 48 : 280 }}
-      transition={{ type: "spring", stiffness: 300, damping: 35 }}
-      className="h-full flex-shrink-0 relative"
-    >
-      {collapsed ? (
-        <div className="h-full rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 backdrop-blur-lg flex flex-col items-center py-3 gap-2 shadow-2xl shadow-black/40">
-          <button
-            onClick={onToggle}
-            className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            {isLeft ? <CaretRight size={14} weight="bold" /> : <CaretLeft size={14} weight="bold" />}
-          </button>
-          <div className="w-4 h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent" />
-          {Icon && <Icon size={14} className="text-slate-500" />}
-          <span className="text-[10px] text-slate-600 [writing-mode:vertical-rl] rotate-180">{title}</span>
-        </div>
-      ) : (
-        <div className="h-full relative rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-lg">
-          {children}
-          {/* Subtle inner edge highlight instead of white line */}
-          <div
-            className={cn(
-              "absolute top-4 bottom-4 w-px",
-              isLeft ? "right-0" : "left-0"
-            )}
-            style={{
-              background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.04) 20%, rgba(255,255,255,0.04) 80%, transparent)",
-            }}
-          />
-          {/* Toggle button */}
-          <button
-            onClick={onToggle}
-            className={cn(
-              "absolute top-3 p-1.5 rounded-xl bg-gradient-to-br from-slate-700/60 to-slate-800/80 hover:from-slate-600/60 hover:to-slate-700/80 text-slate-400 hover:text-slate-200 transition-all shadow-lg shadow-black/20 z-10",
-              isLeft ? "right-2" : "left-2"
-            )}
-          >
-            {isLeft ? <CaretLeft size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
-          </button>
-        </div>
+  // Toggle button component
+  const ToggleButton = () => (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "flex-shrink-0 w-5 h-full flex items-center justify-center transition-all group/toggle",
+        "hover:bg-indigo-600/20"
       )}
-    </motion.aside>
+      title={collapsed ? "Expand" : "Collapse"}
+    >
+      <div className={cn(
+        "w-5 h-16 flex items-center justify-center",
+        "bg-gradient-to-b from-indigo-600/80 to-indigo-700/90",
+        "hover:from-indigo-500/90 hover:to-indigo-600/95",
+        "text-white/80 hover:text-white transition-all",
+        "shadow-lg shadow-indigo-900/30",
+        isLeft ? "rounded-r-lg" : "rounded-l-lg"
+      )}>
+        {isLeft ? (
+          collapsed ? <CaretRight size={14} weight="bold" /> : <CaretLeft size={14} weight="bold" />
+        ) : (
+          collapsed ? <CaretLeft size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />
+        )}
+      </div>
+    </button>
+  );
+  
+  return (
+    <div className="h-full flex-shrink-0 flex items-stretch">
+      {/* Toggle button for right sidebar - on the left side */}
+      {!isLeft && <ToggleButton />}
+      
+      <motion.aside
+        animate={{ width: collapsed ? 48 : 280 }}
+        transition={{ type: "spring", stiffness: 300, damping: 35 }}
+        className="h-full"
+      >
+        {collapsed ? (
+          <div className="h-full rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 backdrop-blur-lg flex flex-col items-center justify-center gap-2 shadow-2xl shadow-black/40">
+            {Icon && <Icon size={16} className="text-slate-500" />}
+            <span className="text-[10px] text-slate-600 [writing-mode:vertical-rl] rotate-180">{title}</span>
+          </div>
+        ) : (
+          <div className="h-full relative rounded-2xl bg-gradient-to-br from-slate-900/70 to-slate-950/80 shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-lg">
+            {children}
+            {/* Subtle inner edge highlight */}
+            <div
+              className={cn(
+                "absolute top-4 bottom-4 w-px",
+                isLeft ? "right-0" : "left-0"
+              )}
+              style={{
+                background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.04) 20%, rgba(255,255,255,0.04) 80%, transparent)",
+              }}
+            />
+          </div>
+        )}
+      </motion.aside>
+      
+      {/* Toggle button for left sidebar - on the right side */}
+      {isLeft && <ToggleButton />}
+    </div>
   );
 }
 

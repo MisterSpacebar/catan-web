@@ -1,10 +1,12 @@
 // server/llmAgent.js
 // OpenAI helper that turns a CatanGame state into a structured action suggestion.
 const OpenAI = require("openai");
+const Anthropic = require("@anthropic-ai/sdk");
 
 // Default to OpenAI's gpt-4o for all agents unless explicitly overridden.
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 const GEMINI_OPENAI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
+const ANTHROPIC_VERSION = "2023-06-01";
 
 // Canonical list of supported server actions + expected payload shape hints
 const ACTION_SCHEMA = {
@@ -153,6 +155,9 @@ function resolveApiKey(config = {}) {
   if (config.provider === "google" && process.env.GEMINI_API_KEY) {
     return process.env.GEMINI_API_KEY;
   }
+  if (config.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+    return process.env.ANTHROPIC_API_KEY;
+  }
   return process.env.OPENAI_API_KEY;
 }
 
@@ -161,31 +166,46 @@ function resolveBaseURL(config = {}) {
     config.apiEndpoint || (config.provider === "google" ? GEMINI_OPENAI_BASE : null);
   if (!endpoint) return undefined;
   const trimmed = endpoint.replace(/\/$/, "");
+  if (config.provider === "anthropic") return trimmed;
   if (trimmed.includes("/openai")) return trimmed;
   if (trimmed.includes("/v1")) return trimmed;
   return `${trimmed}/v1`;
 }
 
 function getClient(config = {}) {
-  if (config.client) return config.client;
+  if (config.client) return { client: config.client, kind: config.provider || "openai" };
 
-  const apiKey = resolveApiKey(config);
+  const provider = config.provider || "openai";
+  const apiKey = resolveApiKey({ ...config, provider });
   if (!apiKey) {
     throw new Error("No API key available for LLM call.");
   }
 
+  if (provider === "anthropic") {
+    const baseURL = config.apiEndpoint
+      ? config.apiEndpoint.replace(/\/$/, "").replace(/\/v1$/, "")
+      : undefined;
+    const clientOptions = {
+      apiKey,
+      maxRetries: 2,
+      anthropicVersion: ANTHROPIC_VERSION,
+    };
+    if (baseURL) clientOptions.baseURL = baseURL;
+    return { client: new Anthropic(clientOptions), kind: "anthropic" };
+  }
+
   // Allow custom endpoints (e.g., Azure/Gemini/OpenAI-compatible APIs)
-  const baseURL = resolveBaseURL(config);
+  const baseURL = resolveBaseURL({ ...config, provider });
 
   const clientOptions = { apiKey };
   if (baseURL) clientOptions.baseURL = baseURL;
 
   // Gemini's OpenAI-compatible endpoint accepts either Authorization or x-goog-api-key headers.
-  if (config.provider === "google") {
+  if (provider === "google") {
     clientOptions.defaultHeaders = { "x-goog-api-key": apiKey };
   }
 
-  return new OpenAI(clientOptions);
+  return { client: new OpenAI(clientOptions), kind: "openai" };
 }
 
 function parseActionResponse(response) {
@@ -206,6 +226,19 @@ function parseActionResponse(response) {
   throw new Error("Could not parse action from model response.");
 }
 
+function parseAnthropicResponse(response) {
+  const textBlock = Array.isArray(response?.content)
+    ? response.content.find((part) => part?.type === "text")
+    : null;
+  const text = textBlock?.text || "";
+  if (!text) throw new Error("Model returned empty message.");
+  try {
+    return tryParseJson(text);
+  } catch (err) {
+    throw new Error("Model returned non-JSON text: " + text);
+  }
+}
+
 async function getLLMAction(
   game,
   { llmConfig = {}, model, notes, client, apiKey, apiEndpoint } = {}
@@ -218,7 +251,7 @@ async function getLLMAction(
     client,
   };
 
-  const openai = getClient(mergedConfig);
+  const { client: llmClient, kind } = getClient(mergedConfig);
   const snapshot = summarizeGame(game);
   const prompt = buildSystemPrompt();
   const systemMessage = `${prompt}\nReturn ONLY raw JSON conforming to the schema (no markdown, no code fences, no extra text): ${JSON.stringify(
@@ -231,8 +264,17 @@ async function getLLMAction(
   let parsed = null;
   let usage = null;
 
-  if (mergedConfig.provider === "google") {
-    const completion = await openai.chat.completions.create({
+  if (kind === "anthropic") {
+    const completion = await llmClient.messages.create({
+      model: mergedConfig.model,
+      system: systemMessage,
+      messages: [{ role: "user", content: userMessage }],
+      max_tokens: 600,
+    });
+    parsed = parseAnthropicResponse(completion);
+    usage = completion.usage;
+  } else if (mergedConfig.provider === "google") {
+    const completion = await llmClient.chat.completions.create({
       model: mergedConfig.model,
       messages: [
         { role: "system", content: systemMessage },
@@ -243,7 +285,7 @@ async function getLLMAction(
     parsed = parseChatCompletionResponse(completion);
     usage = completion.usage;
   } else {
-    const response = await openai.responses.create({
+    const response = await llmClient.responses.create({
       model: mergedConfig.model,
       input: [
         { role: "system", content: systemMessage },
@@ -268,4 +310,5 @@ module.exports = {
   buildSystemPrompt,
   getLLMAction,
   summarizeGame,
+  resolveApiKey,
 };

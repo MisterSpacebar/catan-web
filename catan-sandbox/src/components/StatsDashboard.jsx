@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { motion } from "framer-motion";
 import {
@@ -352,6 +352,8 @@ ResourcePieChart.propTypes = {
 
 // Main Stats Dashboard
 export function StatsDashboard({ players, gameStats }) {
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(true);
+  
   const sortedPlayers = useMemo(() => 
     [...players].sort((a, b) => (b.victoryPoints || 0) - (a.victoryPoints || 0)),
     [players]
@@ -407,16 +409,20 @@ export function StatsDashboard({ players, gameStats }) {
 
   return (
     <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ChartBar size={16} className="text-indigo-400" />
-          <span className="text-[14px] font-semibold">Game Analytics</span>
-        </CardTitle>
-      </CardHeader>
-
       <CardContent
-        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0 pt-4"
       >
+        {/* Game Analytics Section */}
+        <Collapsible
+          title="Game Analytics"
+          icon={ChartBar}
+          defaultOpen={isAnalyticsOpen}
+          onOpenChange={setIsAnalyticsOpen}
+          variant="elevated"
+          className="!bg-transparent !shadow-none !p-0"
+          headerClassName="!bg-gradient-to-br !from-slate-800/50 !to-slate-900/60 !rounded-2xl !shadow-lg !shadow-black/20"
+        >
+          <div className="space-y-2.5 pt-2">
         {/* Overview Stats */}
         <Collapsible
           title="Overview Stats"
@@ -575,6 +581,8 @@ export function StatsDashboard({ players, gameStats }) {
                 <PlayerRadarChart player={player} maxValues={maxValues} />
               </div>
             ))}
+          </div>
+        </Collapsible>
           </div>
         </Collapsible>
       </CardContent>

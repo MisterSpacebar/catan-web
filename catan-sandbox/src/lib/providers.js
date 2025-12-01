@@ -12,7 +12,7 @@ import {
   Zhipu,
   Ollama,
   OpenAI,
-  Anthropic,
+  Claude,
   Gemini,
   XAI,
   OpenRouter,
@@ -32,7 +32,7 @@ export const PROVIDER_ICONS = {
   huggingface: HuggingFace,
   ollama: Ollama,
   openai: OpenAI,
-  anthropic: Anthropic,
+  anthropic: Claude,
   google: Gemini,
   xai: XAI,
   openrouter: OpenRouter,
@@ -52,7 +52,7 @@ export const PROVIDER_COLORS = {
   huggingface: "#ffcc4d",
   ollama: "#00d4aa",
   openai: "#10a37f",
-  anthropic: "#cc785c",
+  anthropic: "#d97757",
   google: "#4285f4",
   xai: "#1da1f2",
   openrouter: "#6366f1",
@@ -70,7 +70,7 @@ export function getProviderColor(providerId) {
 }
 
 // Providers whose brand marks look best as white monochrome on dark backgrounds.
-export const WHITE_LOGO_PROVIDERS = ["moonshot", "ollama", "anthropic", "xai", 'openai'];
+export const WHITE_LOGO_PROVIDERS = ["moonshot", "ollama", "xai", "openai"];
 
 // LLM Provider Categories Configuration
 export const LLM_CATEGORIES = {
@@ -127,7 +127,11 @@ export const LLM_CATEGORIES = {
     label: "Closed Source",
     color: "#a855f7",
     providers: [
-      { id: "openai", name: "OpenAI", models: ["GPT-4o", "GPT-4 Turbo", "o1-preview"] },
+      {
+        id: "openai",
+        name: "OpenAI",
+        models: ["gpt-5-nano-2025-08-07", "GPT-4o", "GPT-4 Turbo", "o1-preview"],
+      },
       {
         id: "anthropic",
         name: "Anthropic",
