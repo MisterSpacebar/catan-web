@@ -29,7 +29,7 @@ export function QuickRulesPanel() {
   ];
 
   return (
-    <Card className="h-full overflow-hidden shadow-2xl shadow-black/35">
+    <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Book size={14} className="text-emerald-400" />
@@ -37,7 +37,9 @@ export function QuickRulesPanel() {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto" style={{ maxHeight: "calc(100% - 56px)" }}>
+      <CardContent
+        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+      >
         {/* Added spacing between collapsibles with space-y-3 */}
         <div className="space-y-3">
           {/* How to play - Collapsible */}

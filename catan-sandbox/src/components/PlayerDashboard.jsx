@@ -381,7 +381,7 @@ export function PlayerDashboard({
     typeof roll1 === "number" && typeof roll2 === "number" ? roll1 + roll2 : null;
 
   return (
-    <Card className="h-full overflow-hidden">
+    <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users size={16} className="text-indigo-400" />
@@ -389,7 +389,9 @@ export function PlayerDashboard({
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto space-y-2.5 text-[13px] leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
+      <CardContent
+        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+      >
         {/* Player Information */}
         <Collapsible
           title="Player Information"

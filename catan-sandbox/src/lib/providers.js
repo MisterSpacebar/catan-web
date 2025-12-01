@@ -149,12 +149,12 @@ export const LLM_CATEGORIES = {
       {
         id: "google",
         name: "Google Gemini",
-        models: ["Gemini 2.0 Pro", "Gemini 1.5 Pro"],
+        models: ["gemini-2.5-flash-lite", "Gemini 2.0 Pro", "Gemini 1.5 Pro"],
         endpoints: [
           {
             id: "gemini-default",
-            label: "Gemini API (generativelanguage.googleapis.com)",
-            url: "https://generativelanguage.googleapis.com",
+            label: "Gemini (OpenAI compatible)",
+            url: "https://generativelanguage.googleapis.com/v1beta/openai",
           },
         ],
       },

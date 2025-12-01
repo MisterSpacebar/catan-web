@@ -39,9 +39,7 @@ const Card = React.forwardRef(({ className, children, variant = "default", glow,
     }}
     {...props}
   >
-    <div className="relative">
-      {children}
-    </div>
+    {children}
   </div>
 ));
 

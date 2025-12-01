@@ -32,10 +32,13 @@ import {
   Path,
   Buildings,
   Lightning,
+  Cube,
+  Users,
 } from "@phosphor-icons/react";
 import { cn, resourceEmoji, prettyResource } from "../lib/utils";
 import { getPlayerColor, getRankColor } from "../lib/colors";
-import { Card, CardSection } from "./ui/Card";
+import { Card, CardHeader, CardTitle, CardContent, CardSection } from "./ui/Card";
+import { Collapsible } from "./ui/Collapsible";
 
 // Use modular rank colors from colors.js
 
@@ -421,102 +424,104 @@ export function StatsDashboard({ players, gameStats }) {
   }, [gameStats, playerStats]);
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden p-4">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2">
-              <ChartBar size={16} className="text-indigo-400" />
-              Game Analytics
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Real-time statistics and insights</p>
+    <Card className="h-full flex flex-col overflow-hidden shadow-2xl shadow-black/35">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ChartBar size={16} className="text-indigo-400" />
+          <span className="text-[14px] font-semibold">Game Analytics</span>
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent
+        className="flex-1 overflow-y-auto space-y-2.5 text-[13px] leading-relaxed pr-1 min-h-0"
+      >
+        {/* Overview Stats */}
+        <Collapsible
+          title="Overview Stats"
+          icon={Target}
+          badge={overallStats.totalTurns}
+          defaultOpen={true}
+          variant="elevated"
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Total Turns", value: overallStats.totalTurns, icon: Target, color: "#6366f1" },
+              { label: "Total Trades", value: overallStats.totalTrades, icon: Handshake, color: "#22c55e" },
+              { label: "Buildings", value: overallStats.totalBuildings, icon: House, color: "#f59e0b" },
+              { label: "Roads Built", value: overallStats.totalRoads, icon: Path, color: "#ef4444" },
+            ].map((stat, idx) => (
+              <div key={idx} className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <stat.icon size={14} style={{ color: stat.color }} />
+                  <span className="text-[11px] text-slate-500">{stat.label}</span>
+                </div>
+                <div className="text-xl font-bold text-slate-200">{stat.value}</div>
+              </div>
+            ))}
           </div>
-        </div>
+        </Collapsible>
 
-        {/* Overview Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: "Total Turns", value: overallStats.totalTurns, icon: Target, color: "#6366f1" },
-            { label: "Total Trades", value: overallStats.totalTrades, icon: Handshake, color: "#22c55e" },
-            { label: "Buildings", value: overallStats.totalBuildings, icon: House, color: "#f59e0b" },
-            { label: "Roads Built", value: overallStats.totalRoads, icon: Path, color: "#ef4444" },
-          ].map((stat, idx) => (
-            <Card key={idx} variant="surface" className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <stat.icon size={14} style={{ color: stat.color }} />
-                <span className="text-[11px] text-slate-500">{stat.label}</span>
-              </div>
-              <div className="text-2xl font-bold text-slate-200">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
+        {/* Leaderboard */}
+        <Collapsible
+          title="Leaderboard"
+          icon={Trophy}
+          defaultOpen={true}
+          variant="elevated"
+        >
+          <div className="space-y-1.5">
+            {sortedPlayers.map((player, idx) => (
+              <LeaderboardRow 
+                key={player.id} 
+                player={player} 
+                rank={idx + 1}
+                stats={playerStats[player.id]}
+              />
+            ))}
+          </div>
+        </Collapsible>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Leaderboard */}
-          <Card variant="elevated">
-            <CardSection className="p-3 border-b border-slate-800/50">
-              <div className="flex items-center gap-2">
-                <Trophy size={14} className="text-amber-400" />
-                <span className="text-sm font-medium text-slate-300">Leaderboard</span>
-              </div>
-            </CardSection>
-            <CardSection className="p-3 space-y-2">
-              {sortedPlayers.map((player, idx) => (
-                <LeaderboardRow 
-                  key={player.id} 
-                  player={player} 
-                  rank={idx + 1}
-                  stats={playerStats[player.id]}
-                />
-              ))}
-            </CardSection>
-          </Card>
+        {/* VP Progress Chart */}
+        <Collapsible
+          title="Victory Point Progress"
+          icon={ChartLine}
+          defaultOpen={true}
+          variant="elevated"
+        >
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+            <VPProgressChart players={players} gameStats={gameStats} />
+          </div>
+        </Collapsible>
 
-          {/* VP Progress Chart */}
-          <Card variant="elevated">
-            <CardSection className="p-3 border-b border-slate-800/50">
-              <div className="flex items-center gap-2">
-                <ChartLine size={14} className="text-indigo-400" />
-                <span className="text-sm font-medium text-slate-300">Victory Point Progress</span>
-              </div>
-            </CardSection>
-            <CardSection className="p-3">
-              <VPProgressChart players={players} gameStats={gameStats} />
-            </CardSection>
-          </Card>
+        {/* Resource Distribution */}
+        <Collapsible
+          title="Resource Distribution"
+          icon={Cube}
+          defaultOpen={true}
+          variant="elevated"
+        >
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+            <ResourceDistributionChart players={players} />
+          </div>
+        </Collapsible>
 
-          {/* Resource Distribution */}
-          <Card variant="elevated" className="lg:col-span-2">
-            <CardSection className="p-3 border-b border-slate-800/50">
-              <div className="flex items-center gap-2">
-                <ChartBar size={14} className="text-emerald-400" />
-                <span className="text-sm font-medium text-slate-300">Resource Distribution</span>
-              </div>
-            </CardSection>
-            <CardSection className="p-3">
-              <ResourceDistributionChart players={players} />
-            </CardSection>
-          </Card>
-        </div>
-
-        {/* Player Analysis Grid */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-            <TrendUp size={14} className="text-cyan-400" />
-            Player Strategy Analysis
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Player Strategy Analysis */}
+        <Collapsible
+          title="Player Strategy Analysis"
+          icon={TrendUp}
+          badge={players.length}
+          defaultOpen={false}
+          variant="elevated"
+        >
+          <div className="grid grid-cols-1 gap-2">
             {players.map((player) => {
               const playerColor = getPlayerColor(player.id);
               const stats = playerStats[player.id];
               const maxStatValue = Math.max(stats.towns * 2, stats.cities * 3, stats.roads, stats.trades);
               
               return (
-                <Card key={player.id} variant="surface" className="overflow-hidden">
+                <div key={player.id} className="rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20 overflow-hidden">
                   <div 
-                    className="p-3 border-b border-slate-800/30"
+                    className="p-2.5 border-b border-slate-700/30"
                     style={{ background: `${playerColor.primary}08` }}
                   >
                     <div className="flex items-center gap-2">
@@ -524,11 +529,11 @@ export function StatsDashboard({ players, gameStats }) {
                         className="w-3 h-3 rounded-full"
                         style={{ background: playerColor.primary }}
                       />
-                      <span className="text-sm font-medium text-slate-200">{player.name}</span>
+                      <span className="text-[13px] font-medium text-slate-200">{player.name}</span>
                     </div>
                   </div>
                   
-                  <div className="p-3 space-y-3">
+                  <div className="p-2.5 space-y-2">
                     <StatBar 
                       label="Settlements" 
                       value={stats.towns} 
@@ -566,43 +571,40 @@ export function StatsDashboard({ players, gameStats }) {
                     />
                   </div>
 
-                  <div className="px-3 pb-3">
+                  <div className="px-2.5 pb-2.5">
                     <div className="text-[10px] text-slate-500 mb-1">Resource Split</div>
                     <ResourcePieChart player={player} />
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
-        </div>
+        </Collapsible>
 
-        {/* Player Radar Comparison */}
-        <Card variant="elevated">
-          <CardSection className="p-3 border-b border-slate-800/50">
-            <div className="flex items-center gap-2">
-              <Target size={14} className="text-purple-400" />
-              <span className="text-sm font-medium text-slate-300">Performance Comparison</span>
-            </div>
-          </CardSection>
-          <CardSection className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {players.map((player) => (
-                <div key={player.id}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div 
-                      className="w-2 h-2 rounded-full"
-                      style={{ background: getPlayerColor(player.id).primary }}
-                    />
-                    <span className="text-xs text-slate-400">{player.name}</span>
-                  </div>
-                  <PlayerRadarChart player={player} maxValues={maxValues} />
+        {/* Performance Comparison */}
+        <Collapsible
+          title="Performance Comparison"
+          icon={Users}
+          defaultOpen={false}
+          variant="elevated"
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {players.map((player) => (
+              <div key={player.id} className="p-2.5 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: getPlayerColor(player.id).primary }}
+                  />
+                  <span className="text-[11px] text-slate-400">{player.name}</span>
                 </div>
-              ))}
-            </div>
-          </CardSection>
-        </Card>
-      </div>
-    </div>
+                <PlayerRadarChart player={player} maxValues={maxValues} />
+              </div>
+            ))}
+          </div>
+        </Collapsible>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -4,6 +4,7 @@ const OpenAI = require("openai");
 
 // Default to OpenAI's gpt-4o for all agents unless explicitly overridden.
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const GEMINI_OPENAI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 
 // Canonical list of supported server actions + expected payload shape hints
 const ACTION_SCHEMA = {
@@ -110,21 +111,79 @@ function summarizeGame(game) {
   };
 }
 
+function tryParseJson(text) {
+  let cleaned = (text || "").trim();
+  if (!cleaned) throw new Error("Model returned empty response.");
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "").replace(/```$/, "").trim();
+  }
+  return JSON.parse(cleaned);
+}
+
+function parseChatCompletionResponse(response) {
+  const choice = response?.choices?.[0];
+  const message = choice?.message;
+  let text = "";
+
+  if (typeof message?.content === "string") {
+    text = message.content;
+  } else if (Array.isArray(message?.content)) {
+    text = message.content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (!text) throw new Error("Model returned empty message.");
+
+  try {
+    return tryParseJson(text);
+  } catch (err) {
+    throw new Error("Model returned non-JSON text: " + text);
+  }
+}
+
+function resolveApiKey(config = {}) {
+  if (config.apiKey) return config.apiKey;
+  if (config.provider === "google" && process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  return process.env.OPENAI_API_KEY;
+}
+
+function resolveBaseURL(config = {}) {
+  const endpoint =
+    config.apiEndpoint || (config.provider === "google" ? GEMINI_OPENAI_BASE : null);
+  if (!endpoint) return undefined;
+  const trimmed = endpoint.replace(/\/$/, "");
+  if (trimmed.includes("/openai")) return trimmed;
+  if (trimmed.includes("/v1")) return trimmed;
+  return `${trimmed}/v1`;
+}
+
 function getClient(config = {}) {
   if (config.client) return config.client;
 
-  const apiKey = config.apiKey || process.env.OPENAI_API_KEY;
+  const apiKey = resolveApiKey(config);
   if (!apiKey) {
     throw new Error("No API key available for LLM call.");
   }
 
-  // Allow custom endpoints (e.g., Azure or self-hosted OpenAI-compatible APIs)
-  const baseURL = config.apiEndpoint
-    ? `${config.apiEndpoint.replace(/\/$/, "")}${config.apiEndpoint.includes("/v1") ? "" : "/v1"}`
-    : undefined;
+  // Allow custom endpoints (e.g., Azure/Gemini/OpenAI-compatible APIs)
+  const baseURL = resolveBaseURL(config);
 
   const clientOptions = { apiKey };
   if (baseURL) clientOptions.baseURL = baseURL;
+
+  // Gemini's OpenAI-compatible endpoint accepts either Authorization or x-goog-api-key headers.
+  if (config.provider === "google") {
+    clientOptions.defaultHeaders = { "x-goog-api-key": apiKey };
+  }
 
   return new OpenAI(clientOptions);
 }
@@ -137,13 +196,8 @@ function parseActionResponse(response) {
 
   const textBlock = blocks.find((b) => typeof b.text === "string");
   if (textBlock?.text) {
-    // Strip common Markdown code fences before parsing.
-    let cleaned = textBlock.text.trim();
-    if (cleaned.startsWith("```")) {
-      cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "").replace(/```$/, "").trim();
-    }
     try {
-      return JSON.parse(cleaned);
+      return tryParseJson(textBlock.text);
     } catch (err) {
       throw new Error("Model returned non-JSON text: " + textBlock.text);
     }
@@ -167,30 +221,44 @@ async function getLLMAction(
   const openai = getClient(mergedConfig);
   const snapshot = summarizeGame(game);
   const prompt = buildSystemPrompt();
+  const systemMessage = `${prompt}\nReturn ONLY raw JSON conforming to the schema (no markdown, no code fences, no extra text): ${JSON.stringify(
+    ACTION_SCHEMA
+  )}.`;
+  const userMessage = `Decide the next action for player ${snapshot.currentPlayer?.name} (id ${
+    snapshot.currentPlayer?.id
+  }). Optional notes: ${notes || "none"}.\nSnapshot:\n${JSON.stringify(snapshot)}`;
 
-  const response = await openai.responses.create({
-    model: mergedConfig.model,
-    input: [
-      {
-        role: "system",
-        content: `${prompt}\nReturn ONLY raw JSON conforming to the schema (no markdown, no code fences, no extra text): ${JSON.stringify(
-          ACTION_SCHEMA
-        )}.`,
-      },
-      {
-        role: "user",
-        content: `Decide the next action for player ${snapshot.currentPlayer?.name} (id ${snapshot.currentPlayer?.id}). Optional notes: ${notes || "none"}.\nSnapshot:\n${JSON.stringify(snapshot)}`,
-      },
-    ],
-  });
+  let parsed = null;
+  let usage = null;
 
-  const parsed = parseActionResponse(response);
+  if (mergedConfig.provider === "google") {
+    const completion = await openai.chat.completions.create({
+      model: mergedConfig.model,
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ],
+      response_format: { type: "json_object" },
+    });
+    parsed = parseChatCompletionResponse(completion);
+    usage = completion.usage;
+  } else {
+    const response = await openai.responses.create({
+      model: mergedConfig.model,
+      input: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ],
+    });
+    parsed = parseActionResponse(response);
+    usage = response.usage;
+  }
 
   return {
     ...parsed,
     model: mergedConfig.model,
     snapshot,
-    usage: response.usage,
+    usage,
   };
 }
 

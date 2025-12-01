@@ -11,6 +11,7 @@ app.use(express.json());
 const games = new Map(); // gameId -> CatanGame
 const VERIFY_TIMEOUT_MS = 6000;
 const MAX_LLM_ATTEMPTS = 3;
+const GEMINI_OPENAI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 
 function buildVerificationRequest(provider, apiKey, apiEndpoint) {
   const trimmedEndpoint = (apiEndpoint || "").replace(/\/$/, "");
@@ -35,14 +36,20 @@ function buildVerificationRequest(provider, apiKey, apiEndpoint) {
           },
         },
       };
-    case "google":
+    case "google": {
+      const endpoint = trimmedEndpoint || GEMINI_OPENAI_BASE;
       return {
-        url: `${trimmedEndpoint || "https://generativelanguage.googleapis.com"}/v1/models`,
+        // Use the OpenAI-compatible surface for Gemini verification so it aligns with our client calls.
+        url: `${endpoint}/models`,
         options: {
           method: "GET",
-          headers: { "x-goog-api-key": apiKey },
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "x-goog-api-key": apiKey,
+          },
         },
       };
+    }
     case "xai":
     case "deepseek":
     case "meta":
