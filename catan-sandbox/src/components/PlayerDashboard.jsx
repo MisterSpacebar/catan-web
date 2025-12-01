@@ -719,27 +719,41 @@ export function PlayerDashboard({
           defaultOpen={false}
           variant="elevated"
         >
-          <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+          <div className="space-y-1.5 xl:space-y-2 max-h-60 xl:max-h-80 overflow-y-auto pr-1">
             {actionLog.length === 0 && (
-              <div className="text-xs text-slate-500">No messages yet.</div>
+              <div className="text-xs lg:text-sm text-slate-500">No messages yet.</div>
             )}
-            {[...actionLog].reverse().map((entry, idx) => (
+            {[...actionLog].reverse().map((entry, idx) => {
+              const logColor = getPlayerColor(entry.playerId ?? 0);
+              return (
               <div
                 key={entry.id || idx}
-                className="p-2 rounded-xl bg-slate-900/60 border border-slate-800/70 text-xs text-slate-200"
+                className="relative p-2.5 xl:p-3 pl-4 xl:pl-5 rounded-2xl text-xs lg:text-[13px] xl:text-sm text-slate-200 transition-all duration-200"
+                style={{
+                  background: `linear-gradient(135deg, ${logColor.primary}20, ${logColor.primary}10)`,
+                  border: `1px solid ${logColor.primary}30`,
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04)`,
+                }}
               >
+                {/* Left accent bar */}
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full"
+                  style={{ 
+                    background: `linear-gradient(180deg, ${logColor.primary}, ${logColor.primary}80)`,
+                  }}
+                />
                 {/* Header row: P# chip, provider chip, timestamp - all on same line */}
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 xl:gap-3 mb-1.5 xl:mb-2">
                   {entry.playerId !== undefined && (
                     <PlayerLabel playerId={entry.playerId} size="sm" />
                   )}
                   {entry.provider && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <div className="w-5 h-5 rounded-md bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 xl:gap-2 text-[11px] lg:text-xs xl:text-sm text-slate-400">
+                      <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-md bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
                         <ProviderAvatar providerId={entry.provider} size={12} />
                       </div>
                       <div className="leading-tight min-w-0">
-                        <div className="text-[10px] text-slate-300 truncate">
+                        <div className="text-[10px] lg:text-[11px] xl:text-xs text-slate-300 truncate">
                           {(() => {
                             const defaultPlayer = /^player\s*\d+/i.test((entry.playerName || "").trim());
                             const friendly = (id) => {
@@ -754,7 +768,7 @@ export function PlayerDashboard({
                           })()}
                         </div>
                         {entry.providerModel && (
-                          <div className="text-[9px] text-slate-500 truncate -mt-0.5">
+                          <div className="text-[9px] lg:text-[10px] xl:text-[11px] text-slate-500 truncate -mt-0.5">
                             {entry.providerModel}
                           </div>
                         )}
@@ -762,7 +776,7 @@ export function PlayerDashboard({
                     </div>
                   )}
                   <span className="flex-1" />
-                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                  <span className="text-[10px] lg:text-[11px] xl:text-xs text-slate-500 whitespace-nowrap">
                     {entry.turn ? `T${entry.turn} • ` : ""}
                     {new Date(entry.timestamp).toLocaleTimeString([], {
                       hour: "2-digit",
@@ -776,7 +790,8 @@ export function PlayerDashboard({
                   {entry.message}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Collapsible>
           </div>

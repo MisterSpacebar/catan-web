@@ -131,17 +131,18 @@ export function PlayerCard({ player, isSelected = false, onClick, children, clas
   return (
     <div
       className={cn(
-        "relative rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer",
+        "relative rounded-2xl transition-all duration-200 cursor-pointer",
         "hover:-translate-y-0.5",
         className
       )}
       style={{
         background: isSelected 
-          ? `linear-gradient(135deg, ${color.primary}12, ${color.primary}06)` 
+          ? `linear-gradient(135deg, ${color.primary}25, ${color.primary}15)` 
           : "linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6))",
         boxShadow: isSelected 
-          ? `0 8px 24px ${color.glow}, 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)` 
+          ? `0 0 0 1px ${color.primary}50, 0 8px 24px ${color.glow}, 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)` 
           : "0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.02)",
+        border: isSelected ? `1px solid ${color.primary}40` : "1px solid transparent",
       }}
       onClick={onClick}
     >
@@ -150,7 +151,7 @@ export function PlayerCard({ player, isSelected = false, onClick, children, clas
         className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full"
         style={{ 
           background: `linear-gradient(180deg, ${color.primary}, ${color.primary}80)`,
-          boxShadow: isSelected ? `0 0 8px ${color.glow}` : "none",
+          boxShadow: isSelected ? `0 0 12px ${color.glow}` : "none",
         }}
       />
       

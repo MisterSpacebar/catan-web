@@ -121,7 +121,7 @@ export function Collapsible({
             }}
             className="overflow-hidden"
           >
-            {/* Content wrapper */}
+            {/* Content wrapper with padding to accommodate child shadows/glows */}
             <div className="px-3.5 pb-3.5 pt-1 space-y-2">
               {children}
             </div>
