@@ -467,30 +467,30 @@ export function PlayerDashboard({
             {/* Current Turn */}
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Current Turn</div>
-              <PlayerTurnChip
-                player={{ ...currentTurnPlayer, name: normalizeTurnName(currentTurnPlayer) }}
-                isActive={true}
-                size="md"
-                showName={false}
-              />
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2">
+                <PlayerTurnChip
+                  player={{ ...currentTurnPlayer, name: normalizeTurnName(currentTurnPlayer) }}
+                  isActive={true}
+                  size="md"
+                  showName={false}
+                />
                 <PlayerLabel playerId={currentTurnPlayer?.id} size="sm" />
-                <ProviderMetaRow player={currentTurnPlayer} />
+                <ProviderMetaRow player={currentTurnPlayer} className="mt-0" />
               </div>
             </div>
 
             {/* Next Turn */}
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Next Turn</div>
-              <PlayerTurnChip
-                player={{ ...nextTurnPlayer, name: normalizeTurnName(nextTurnPlayer) }}
-                isActive={false}
-                size="md"
-                showName={false}
-              />
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2">
+                <PlayerTurnChip
+                  player={{ ...nextTurnPlayer, name: normalizeTurnName(nextTurnPlayer) }}
+                  isActive={false}
+                  size="md"
+                  showName={false}
+                />
                 <PlayerLabel playerId={nextTurnPlayer?.id} size="sm" />
-                <ProviderMetaRow player={nextTurnPlayer} />
+                <ProviderMetaRow player={nextTurnPlayer} className="mt-0" />
               </div>
             </div>
 
@@ -500,7 +500,7 @@ export function PlayerDashboard({
                 <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Upcoming Order</div>
                 <div className="flex flex-wrap gap-2">
                   {turnQueue.map((player) => (
-                    <div key={player.id} className="flex flex-col">
+                    <div key={player.id} className="flex items-center gap-2">
                       <PlayerTurnChip
                         player={{ ...player, name: normalizeTurnName(player) }}
                         isActive={false}
@@ -508,10 +508,8 @@ export function PlayerDashboard({
                         showName={false}
                         className="bg-slate-900/60"
                       />
-                      <div className="flex items-center gap-2 mt-1">
-                        <PlayerLabel playerId={player?.id} size="sm" />
-                        <ProviderMetaRow player={player} />
-                      </div>
+                      <PlayerLabel playerId={player?.id} size="sm" />
+                      <ProviderMetaRow player={player} className="mt-0" />
                     </div>
                   ))}
                 </div>
@@ -628,78 +626,51 @@ export function PlayerDashboard({
                 key={entry.id || idx}
                 className="p-2 rounded-xl bg-slate-900/60 border border-slate-800/70 text-xs text-slate-200"
               >
-                <div className="flex items-start gap-2">
-                  <div className="pt-0.5">
-                    {entry.playerId !== undefined && (
-                      <PlayerLabel playerId={entry.playerId} size="sm" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {(() => {
-                          const friendly = (id) => {
-                            if (id === "google") return "Google Gemini";
-                            if (id === "openai") return "OpenAI";
-                            return id;
-                          };
-                          const friendlyProvider = entry.provider ? friendly(entry.provider) : null;
-                          const isDuplicateName =
-                            entry.provider &&
-                            (entry.playerName === entry.providerName ||
-                              entry.playerName === entry.provider ||
-                              entry.playerName === friendlyProvider);
-                          const nameToShow = isDuplicateName ? "" : entry.playerName;
-                          return nameToShow ? (
-                            <span className="font-semibold text-slate-300 truncate">
-                              {nameToShow}
-                            </span>
-                          ) : null;
-                        })()}
+                {/* Header row: P# chip, provider chip, timestamp - all on same line */}
+                <div className="flex items-center gap-2 mb-1">
+                  {entry.playerId !== undefined && (
+                    <PlayerLabel playerId={entry.playerId} size="sm" />
+                  )}
+                  {entry.provider && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <div className="w-5 h-5 rounded-md bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
+                        <ProviderAvatar providerId={entry.provider} size={12} />
                       </div>
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                        {entry.turn ? `T${entry.turn} • ` : ""}
-                        {new Date(entry.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    {entry.provider && (
-                      <div
-                        className="flex items-center gap-2 text-[11px] text-slate-400"
-                        style={{ marginTop: "-8px" }}
-                      >
-                        <div className="w-6 h-6 rounded-md bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30">
-                          <ProviderAvatar providerId={entry.provider} size={14} />
+                      <div className="leading-tight min-w-0">
+                        <div className="text-[10px] text-slate-300 truncate">
+                          {(() => {
+                            const defaultPlayer = /^player\s*\d+/i.test((entry.playerName || "").trim());
+                            const friendly = (id) => {
+                              if (id === "google") return "Gemini";
+                              if (id === "openai") return "OpenAI";
+                              return id;
+                            };
+                            if (!entry.providerName) return friendly(entry.provider);
+                            if (entry.providerName === entry.playerName || defaultPlayer) return friendly(entry.provider);
+                            return entry.providerName;
+                          })()}
                         </div>
-                        <div className="leading-tight min-w-0">
-                          <div className="text-[11px] text-slate-200 truncate">
-                            {(() => {
-                              const defaultPlayer = /^player\s*\d+/i.test((entry.playerName || "").trim());
-                              const friendly = (id) => {
-                                if (id === "google") return "Google Gemini";
-                                if (id === "openai") return "OpenAI";
-                                return id;
-                              };
-                              if (!entry.providerName) return friendly(entry.provider);
-                              if (entry.providerName === entry.playerName || defaultPlayer) return friendly(entry.provider);
-                              return entry.providerName;
-                            })()}
+                        {entry.providerModel && (
+                          <div className="text-[9px] text-slate-500 truncate -mt-0.5">
+                            {entry.providerModel}
                           </div>
-                          {entry.providerModel && (
-                            <div className="text-[10px] text-slate-500 truncate">
-                              {entry.providerModel}
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    )}
-                    <div className="text-slate-300 leading-snug">
-                      {entry.message}
                     </div>
-                  </div>
+                  )}
+                  <span className="flex-1" />
+                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                    {entry.turn ? `T${entry.turn} • ` : ""}
+                    {new Date(entry.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
+                </div>
+                {/* Message */}
+                <div className="text-slate-300 leading-snug">
+                  {entry.message}
                 </div>
               </div>
             ))}
