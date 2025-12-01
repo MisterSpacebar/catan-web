@@ -1,20 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowsLeftRight,
   CreditCard,
   ArrowCounterClockwise,
-  Shuffle,
   Play,
-  Trophy,
   X,
   Check,
   WarningCircle,
   Sparkle,
-  Book,
-  ListChecks,
-  Hammer,
   CaretLeft,
   CaretRight,
   ChartBar,
@@ -22,14 +17,15 @@ import {
   Cube,
   Users,
 } from "@phosphor-icons/react";
-import { generateBoard, TILE_SIZE, hexCorner } from "../shared/board.js";
+import { generateBoard, TILE_SIZE } from "../shared/board.js";
 import { Button } from "./components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/Card";
 import { Collapsible } from "./components/ui/Collapsible";
 import { GameBoard } from "./components/GameBoard";
 import { PlayerDashboard } from "./components/PlayerDashboard";
 import { StatsDashboard } from "./components/StatsDashboard";
-import { cn, resourceColor, resourceEmoji } from "./lib/utils";
+import { SetupScreen } from "./components/SetupScreen";
+import { cn, resourceEmoji } from "./lib/utils";
 
 // ============================================
 // Constants
@@ -341,99 +337,9 @@ CollapsibleSidebar.propTypes = {
 // Rules Sidebar Content
 // ============================================
 function RulesSidebarContent() {
-  const steps = [
-    { title: "Roll & Produce", desc: "Tiles with matching numbers produce resources." },
-    { title: "Trade Smart", desc: "Use harbors or 4:1 bank trades." },
-    { title: "Build & Expand", desc: "Roads → settlements → cities." },
-    { title: "End Turn", desc: "Pass after building/trading." },
-  ];
-
-  const buildCosts = [
-    { name: "Road", cost: [{ resource: "wood", amount: 1 }, { resource: "brick", amount: 1 }] },
-    { name: "Settlement", cost: [{ resource: "wood", amount: 1 }, { resource: "brick", amount: 1 }, { resource: "wheat", amount: 1 }, { resource: "sheep", amount: 1 }] },
-    { name: "City", cost: [{ resource: "ore", amount: 3 }, { resource: "wheat", amount: 2 }] },
-    { name: "Dev Card", cost: [{ resource: "ore", amount: 1 }, { resource: "wheat", amount: 1 }, { resource: "sheep", amount: 1 }] },
-  ];
-
-  return (
-    <Card className="h-full overflow-hidden shadow-2xl shadow-black/35">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Book size={14} className="text-emerald-400" />
-          <span className="text-[14px] font-semibold">Quick Rules</span>
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="overflow-y-auto space-y-2.5 text-[13px] leading-relaxed" style={{ maxHeight: "calc(100% - 56px)" }}>
-        {/* How to play - Collapsible */}
-        <Collapsible 
-          title="How to Play" 
-          icon={ListChecks}
-          defaultOpen={true}
-          variant="elevated"
-        >
-          <div className="space-y-2">
-            {steps.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 text-emerald-300 text-[13px] font-bold flex items-center justify-center shadow-inner shadow-emerald-500/10">
-                  {idx + 1})
-                </span>
-                <div>
-                  <div className="text-[13px] text-slate-100 font-semibold">{step.title}</div>
-                  <div className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Collapsible>
-
-        {/* Resources - Collapsible */}
-        <Collapsible 
-          title="Resources" 
-          icon={Sparkle}
-          defaultOpen={true}
-          variant="elevated"
-        >
-          <div className="grid grid-cols-2 gap-1.5">
-            {["wood", "brick", "wheat", "sheep", "ore"].map((key) => (
-              <div key={key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/70 shadow-md shadow-black/20 hover:from-slate-800/60 hover:to-slate-900/80 transition-all duration-150">
-                <span className="text-base drop-shadow-sm">{resourceEmoji(key)}</span>
-                <span className="text-[13px] text-slate-200 capitalize font-medium">{key}</span>
-              </div>
-            ))}
-          </div>
-        </Collapsible>
-
-        {/* Build costs - Collapsible */}
-        <Collapsible 
-          title="Build Costs" 
-          icon={Hammer}
-          defaultOpen={true}
-          variant="elevated"
-        >
-          <div className="space-y-1.5">
-            {buildCosts.map((row) => (
-              <div key={row.name} className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <span className="text-[13px] font-semibold text-slate-100">{row.name}</span>
-                <div className="flex items-center gap-1">
-                  {row.cost.map((c, i) => (
-                    <div
-                      key={`${row.name}-${c.resource}-${i}`}
-                      className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-br from-slate-700/60 to-slate-800/80 shadow-sm shadow-black/20"
-                    >
-                      <span className="text-[13px] drop-shadow-sm">{resourceEmoji(c.resource)}</span>
-                      <span className="text-[11px] font-semibold text-slate-200">{c.amount}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Collapsible>
-      </CardContent>
-    </Card>
-  );
+  return null;
 }
+
 
 // ============================================
 // Control Dock
@@ -671,113 +577,6 @@ ViewTabs.propTypes = {
   onViewChange: PropTypes.func.isRequired,
 };
 
-// ============================================
-// Setup Screen
-// ============================================
-function SetupScreen({ numPlayers, setNumPlayers, onStart, onRerandomize, board, bbox }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-3xl w-full"
-      >
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-              <Sparkle size={20} weight="fill" className="text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-200">Catan Sandbox</h1>
-          </div>
-          <p className="text-slate-500 text-sm">Configure and start</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Settings Card */}
-          <Card glow interactive>
-            <CardHeader>
-              <CardTitle size="sm">Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-xs text-slate-500 mb-1.5">Players</label>
-                <div className="flex gap-1.5">
-                  {[3, 4].map((n) => (
-                    <Button
-                      key={n}
-                      variant={numPlayers === n ? "primary" : "secondary"}
-                      onClick={() => setNumPlayers(n)}
-                      className="flex-1"
-                      size="default"
-                    >
-                      {n}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 space-y-2">
-                <Button variant="success" className="w-full" size="lg" onClick={onStart}>
-                  <Play size={16} weight="fill" />
-                  Start Game
-                </Button>
-                <Button variant="secondary" className="w-full" size="default" onClick={onRerandomize}>
-                  <Shuffle size={14} />
-                  Rerandomize
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Preview Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle size="sm">Preview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg overflow-hidden bg-slate-950/50">
-                <svg
-                  width="100%"
-                  viewBox={`${bbox.minX} ${bbox.minY} ${bbox.width} ${bbox.height}`}
-                >
-                  <defs>
-                    <filter id="previewShadow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.4" />
-                    </filter>
-                  </defs>
-                  {board.tiles.map((t, idx) => {
-                    const pts = Array.from({ length: 6 }, (_, i) => hexCorner(t.center, TILE_SIZE, i));
-                    const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
-                    return (
-                      <path
-                        key={idx}
-                        d={path}
-                        fill={resourceColor(t.resource)}
-                        stroke="rgba(0,0,0,0.3)"
-                        strokeWidth={1.5}
-                        filter="url(#previewShadow)"
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-SetupScreen.propTypes = {
-  numPlayers: PropTypes.number.isRequired,
-  setNumPlayers: PropTypes.func.isRequired,
-  onStart: PropTypes.func.isRequired,
-  onRerandomize: PropTypes.func.isRequired,
-  board: PropTypes.object.isRequired,
-  bbox: PropTypes.object.isRequired,
-};
 
 // ============================================
 // Main Component
@@ -787,6 +586,16 @@ export default function CatanSandbox() {
 
   const [stage, setStage] = useState("setup");
   const [numPlayers, setNumPlayers] = useState(4);
+  const [playerConfigs, setPlayerConfigs] = useState(() => 
+    Array.from({ length: 4 }, () => ({
+      type: "human",
+      provider: null,
+      providerCategory: null,
+      model: null,
+      apiKey: "",
+      apiEndpoint: "",
+    }))
+  );
   const [players, setPlayers] = useState([]);
   const [current, setCurrent] = useState(0);
   const [mode, setMode] = useState("select");
@@ -794,45 +603,72 @@ export default function CatanSandbox() {
   const [selection, setSelection] = useState(null);
   const [lastAction, setLastAction] = useState(null);
   const [lastProduction, setLastProduction] = useState(null);
+  const [actionLog, setActionLog] = useState([]);
+  const [turn, setTurn] = useState(1);
   const [devCardDeck, setDevCardDeck] = useState([]);
   const [showDevCardPanel, setShowDevCardPanel] = useState(false);
   const [winner, setWinner] = useState(null);
   const [gameId, setGameId] = useState(null);
   const [isLeftCollapsed, setLeftCollapsed] = useState(false);
   const [isRightCollapsed, setRightCollapsed] = useState(false);
-  const [activeView, setActiveView] = useState("game");
+  const aiTurnLock = useRef(false);
 
-  const API_BASE = "http://localhost:4000";
+  const API_BASE =
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
+    "http://localhost:4000";
 
-  // Create game on mount
-  React.useEffect(() => {
-    async function createGame() {
-      try {
-        const res = await fetch(`${API_BASE}/api/games`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ numPlayers: 4 }),
-        });
+  const pushLog = useCallback((entry) => {
+    setActionLog((prev) => {
+      const next = [...prev, { ...entry, id: entry.id || `${Date.now()}-${prev.length}` }];
+      return next.slice(-80);
+    });
+  }, []);
 
-        const data = await res.json();
-        setGameId(data.id);
-        setBoard(data.board);
-        setPlayers(data.players);
-        setCurrent(data.current);
-        setLastRoll(data.lastRoll || null);
-        setWinner(data.winner || null);
-        setStage("play");
-      } catch (err) {
-        console.error("Failed to create game:", err);
-        startLocalGame();
-      }
+  const applyStateFromServer = useCallback(
+    (state) => {
+      if (!state) return;
+      setBoard(state.board);
+      setPlayers(state.players);
+      setCurrent(state.current);
+      setLastRoll(state.lastRoll || null);
+      setLastProduction(state.lastProduction || null);
+      setWinner(state.winner || null);
+      setTurn(state.turn || 1);
+    },
+    [setBoard]
+  );
+
+  const isAIPlayer = useCallback((player) => {
+    if (!player) return false;
+    return player.model === "ai" || player.type === "llm" || !!player.provider;
+  }, []);
+
+  // Start game from setup screen - try API first, fallback to local
+  const startGameFromSetup = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          numPlayers,
+          playerConfigs: playerConfigs.slice(0, numPlayers)
+        }),
+      });
+
+      const data = await res.json();
+      setGameId(data.id);
+      applyStateFromServer(data);
+      setStage("play");
+      setActionLog([]);
+    } catch (err) {
+      console.error("Failed to create game via API, starting local:", err);
+      startLocalGame();
     }
-    createGame();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setBoard]);
+  }, [numPlayers, playerConfigs, applyStateFromServer]);
 
   const sendAction = async (type, payload = {}) => {
     if (!gameId) return;
+    const actorId = payload.playerId ?? current;
 
     try {
       const res = await fetch(`${API_BASE}/api/games/${gameId}/actions`, {
@@ -850,21 +686,113 @@ export default function CatanSandbox() {
       }
 
       const state = data.state;
-      setBoard(state.board);
-      setPlayers(state.players);
-      setCurrent(state.current);
-      setLastRoll(state.lastRoll || null);
-      setLastProduction(state.lastProduction || null);
-      setWinner(state.winner || null);
+      applyStateFromServer(state);
 
       if (state.winner) {
         setLastAction({ type: "success", message: `${state.winner.name} wins!`, timestamp: Date.now() });
+      }
+
+      if (data.event?.type) {
+        const actorPlayer = (state.players || players).find((p) => p.id === actorId);
+        const actor = actorPlayer?.name || `Player ${actorId + 1}`;
+        pushLog({
+          timestamp: Date.now(),
+          playerId: actorId,
+          playerName: actor,
+          provider: actorPlayer?.provider,
+          providerName: actorPlayer?.providerName || actorPlayer?.provider,
+          providerModel: actorPlayer?.providerModel,
+          message: `${data.event.type}`,
+          turn: state.turn || turn,
+        });
       }
     } catch (err) {
       setLastAction({ type: "error", message: "Network error", timestamp: Date.now() });
       setTimeout(() => setLastAction(null), 3000);
     }
   };
+
+  const runAiTurn = useCallback(async () => {
+    if (!gameId || stage !== "play") return;
+    const currentPlayer = players[current];
+    if (!isAIPlayer(currentPlayer)) return;
+    if (aiTurnLock.current) return;
+
+    aiTurnLock.current = true;
+    let safety = 0;
+    let activePlayerId = currentPlayer?.id;
+    const requestedModel = currentPlayer?.providerModel || "gpt-4o";
+    const model =
+      typeof requestedModel === "string" && requestedModel.toLowerCase().includes("gpt-4o")
+        ? "gpt-4o"
+        : requestedModel;
+
+    try {
+      while (safety < 6) {
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/llm-turn`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            autoApply: true,
+            model,
+          }),
+        });
+
+        const data = await res.json();
+      if (!data.ok) {
+        // If the server already retried and still failed, surface error and stop this loop.
+        setLastAction({
+          type: "error",
+          message: data.error || "LLM action failed",
+          timestamp: Date.now(),
+        });
+        setTimeout(() => setLastAction(null), 3000);
+        break;
+      }
+
+        const state = data.state;
+        applyStateFromServer(state);
+
+        if (data.action?.reason) {
+          setLastAction({
+            type: "info",
+            message: `${currentPlayer?.name || "AI"}: ${data.action.action} – ${data.action.reason}`,
+            timestamp: Date.now(),
+          });
+          setTimeout(() => setLastAction(null), 2500);
+        }
+
+        pushLog({
+          timestamp: Date.now(),
+          playerId: activePlayerId,
+          playerName: currentPlayer?.name || "AI Player",
+          provider: currentPlayer?.provider,
+          providerName: currentPlayer?.providerName || currentPlayer?.provider,
+          providerModel: currentPlayer?.providerModel,
+          message: `${data.action?.action || "action"}${data.action?.reason ? ` – ${data.action.reason}` : ""}`,
+          turn: state?.turn || turn,
+        });
+
+        if (state?.winner || state?.current !== activePlayerId) {
+          break;
+        }
+
+        safety += 1;
+      }
+    } catch (err) {
+      setLastAction({ type: "error", message: "AI turn failed", timestamp: Date.now() });
+      setTimeout(() => setLastAction(null), 3000);
+    } finally {
+      aiTurnLock.current = false;
+    }
+  }, [API_BASE, applyStateFromServer, current, gameId, isAIPlayer, players, stage]);
+
+  useEffect(() => {
+    if (!gameId || stage !== "play") return;
+    const currentPlayer = players[current];
+    if (!isAIPlayer(currentPlayer)) return;
+    runAiTurn();
+  }, [gameId, stage, current, players, isAIPlayer, runAiTurn]);
 
   const placeInitialBuildings = (newBoard) => {
     const { nodes, edges, tiles } = newBoard;
@@ -916,19 +844,34 @@ export default function CatanSandbox() {
   };
 
   const startLocalGame = () => {
-    const ppl = Array.from({ length: numPlayers }, (_, i) => ({
-      id: i,
-      name: `Player ${i + 1}`,
-      color: DEFAULT_COLORS[i],
-      resources: { wood: 1, brick: 1, wheat: 1, sheep: 1, ore: 1 },
-      vp: 0,
-      devCards: [],
-      playedDevCards: [],
-      knightsPlayed: 0,
-      largestArmy: false,
-      longestRoad: false,
-      boughtDevCardThisTurn: false
-    }));
+    const ppl = Array.from({ length: numPlayers }, (_, i) => {
+      const config = playerConfigs[i] || { type: "human" };
+      const isAI = config.type === "llm";
+      return {
+        id: i,
+        name: isAI && config.providerName 
+          ? `${config.providerName}` 
+          : `Player ${i + 1}`,
+        color: DEFAULT_COLORS[i],
+        model: isAI ? "ai" : "human",
+        provider: config.provider,
+        providerName: config.providerName,
+        providerModel: config.model,
+        resources: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
+        victoryPoints: 0,
+        vp: 0,
+        devCards: [],
+        playedDevCards: [],
+        knightsPlayed: 0,
+        largestArmy: false,
+        longestRoad: false,
+        boughtDevCardThisTurn: false,
+        towns: 0,
+        cities: 0,
+        roads: 0,
+        trades: 0,
+      };
+    });
 
     const shuffledDeck = randShuffle([...DEV_CARD_DECK]);
     setDevCardDeck(shuffledDeck);
@@ -937,6 +880,8 @@ export default function CatanSandbox() {
     setBoard(boardWithPlacements);
     setPlayers(ppl);
     setCurrent(0);
+    setTurn(1);
+    setActionLog([]);
     setStage("play");
     setMode("select");
     setLastRoll(null);
@@ -948,22 +893,41 @@ export default function CatanSandbox() {
     setStage("setup");
     setPlayers([]);
     setCurrent(0);
+    setTurn(1);
+    setActionLog([]);
     setMode("select");
     setLastRoll(null);
     setSelection(null);
     setLastProduction(null);
+    setWinner(null);
+    setGameId(null);
     setBoard(generateBoard());
     setActiveView("game");
   };
 
   const endTurn = () => {
-    sendAction("endTurn");
+    if (gameId) {
+      sendAction("endTurn");
+    } else {
+      // Local mode - advance to next player
+      setCurrent((prev) => (prev + 1) % players.length);
+      setTurn((prev) => prev + 1);
+    }
     setMode("select");
     setSelection(null);
     setLastProduction(null);
   };
 
-  const onRollDice = () => sendAction("rollDice");
+  const onRollDice = () => {
+    if (gameId) {
+      sendAction("rollDice");
+    } else {
+      // Local mode - roll dice locally
+      const die1 = Math.floor(Math.random() * 6) + 1;
+      const die2 = Math.floor(Math.random() * 6) + 1;
+      setLastRoll({ die1, die2, total: die1 + die2 });
+    }
+  };
 
   const onClickHex = (hexId) => {
     if (mode === "move-robber") {
@@ -1037,7 +1001,9 @@ export default function CatanSandbox() {
       <SetupScreen
         numPlayers={numPlayers}
         setNumPlayers={setNumPlayers}
-        onStart={startLocalGame}
+        playerConfigs={playerConfigs}
+        setPlayerConfigs={setPlayerConfigs}
+        onStart={startGameFromSetup}
         onRerandomize={rerandomize}
         board={board}
         bbox={bbox}
@@ -1076,10 +1042,16 @@ export default function CatanSandbox() {
           collapsed={isLeftCollapsed}
           onToggle={() => setLeftCollapsed(v => !v)}
           side="left"
-          icon={Book}
-          title="Rules"
+          icon={ChartBar}
+          title="Stats"
         >
-          <RulesSidebarContent />
+          <div className="h-full overflow-hidden">
+            <StatsDashboard
+              players={players}
+              board={board}
+              gameStats={{ turn, lastRoll, lastProduction }}
+            />
+          </div>
         </CollapsibleSidebar>
 
         {/* Center - Main Content */}
@@ -1098,11 +1070,8 @@ export default function CatanSandbox() {
                 <span className="text-sm font-medium text-slate-300">Settlers of Catan</span>
               </div>
 
-              {/* Toolbar - only show on game view */}
-
               {/* Right section */}
               <div className="flex items-center gap-2">
-                <ViewTabs activeView={activeView} onViewChange={setActiveView} />
                 {lastRoll && (
                   <span className="px-2 py-1 rounded bg-slate-800/50 text-xs text-slate-400 font-mono">
                     {lastRoll.total}
@@ -1114,63 +1083,47 @@ export default function CatanSandbox() {
 
           {/* Main Content Area - full height */}
           <div className="flex-1 overflow-hidden min-h-0">
-            <AnimatePresence mode="wait">
-              {activeView === "game" ? (
-                <motion.div
-                  key="game"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full relative"
-                >
-                  {/* Trade panel */}
-                  <AnimatePresence>
-                    {mode === "trade" && players[current] && (
-                      <div className="absolute top-2 left-2 right-2 z-10">
-                        <TradePanel
-                          currentPlayer={players[current]}
-                          nodes={board.nodes}
-                          onTrade={executeTrade}
-                          onClose={() => setMode("select")}
-                        />
-                      </div>
-                    )}
-                  </AnimatePresence>
+            <motion.div
+              key="game"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="relative h-full"
+            >
+              {/* Trade panel */}
+              <AnimatePresence>
+                {mode === "trade" && players[current] && (
+                  <div className="absolute top-2 left-2 right-2 z-10">
+                    <TradePanel
+                      currentPlayer={players[current]}
+                      nodes={board.nodes}
+                      onTrade={executeTrade}
+                      onClose={() => setMode("select")}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
 
-                  {/* Game Board - takes full space */}
-                  <GameBoard
-                    board={board}
-                    players={players}
-                    mode={mode}
-                    selection={selection}
-                    onClickHex={onClickHex}
-                    onClickNode={onClickNode}
-                    onClickEdge={onClickEdge}
-                    bbox={bbox}
-                  />
+              {/* Game Board - full height */}
+              <GameBoard
+                board={board}
+                players={players}
+                mode={mode}
+                selection={selection}
+                onClickHex={onClickHex}
+                onClickNode={onClickNode}
+                onClickEdge={onClickEdge}
+                bbox={bbox}
+              />
 
-                  {/* Control Dock */}
-                  <ControlDock
-                    onReroll={onRollDice}
-                    onEndTurn={endTurn}
-                    onNewGame={newGame}
-                    onReset={rerandomize}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="stats"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full"
-                >
-                  <StatsDashboard players={players} board={board} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+              {/* Control Dock */}
+              <ControlDock
+                onReroll={onRollDice}
+                onEndTurn={endTurn}
+                onNewGame={newGame}
+                onReset={rerandomize}
+              />
+            </motion.div>
           </div>
         </div>
 
@@ -1185,11 +1138,14 @@ export default function CatanSandbox() {
           <PlayerDashboard
             players={players}
             currentPlayer={current}
+            currentTurnIndex={current}
             lastRoll={lastRoll}
             lastProduction={lastProduction}
+            actionLog={actionLog}
             onRollDice={onRollDice}
             onSelectPlayer={(player) => setCurrent(player.id)}
             onEndTurn={endTurn}
+            onEndGame={newGame}
             mode={mode}
             onSetMode={setMode}
             onBuyDevCard={buyDevCard}

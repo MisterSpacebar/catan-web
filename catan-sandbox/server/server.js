@@ -9,6 +9,95 @@ app.use(cors());
 app.use(express.json());
 
 const games = new Map(); // gameId -> CatanGame
+const VERIFY_TIMEOUT_MS = 6000;
+const MAX_LLM_ATTEMPTS = 3;
+
+function buildVerificationRequest(provider, apiKey, apiEndpoint) {
+  const trimmedEndpoint = (apiEndpoint || "").replace(/\/$/, "");
+
+  switch (provider) {
+    case "openai":
+      return {
+        url: `${trimmedEndpoint || "https://api.openai.com"}/v1/models`,
+        options: {
+          method: "GET",
+          headers: { Authorization: `Bearer ${apiKey}` },
+        },
+      };
+    case "anthropic":
+      return {
+        url: `${trimmedEndpoint || "https://api.anthropic.com"}/v1/models`,
+        options: {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+        },
+      };
+    case "google":
+      return {
+        url: `${trimmedEndpoint || "https://generativelanguage.googleapis.com"}/v1/models`,
+        options: {
+          method: "GET",
+          headers: { "x-goog-api-key": apiKey },
+        },
+      };
+    case "xai":
+    case "deepseek":
+    case "meta":
+    case "mistral":
+    case "openrouter":
+      return {
+        url: `${trimmedEndpoint || "https://api.openai.com"}/v1/models`,
+        options: {
+          method: "GET",
+          headers: { Authorization: `Bearer ${apiKey}` },
+        },
+      };
+    case "huggingface":
+      return {
+        url: `${trimmedEndpoint || "https://api-inference.huggingface.co"}/models`,
+        options: {
+          method: "GET",
+          headers: { Authorization: `Bearer ${apiKey}` },
+        },
+      };
+    case "ollama":
+      return {
+        url: `${trimmedEndpoint || "http://localhost:11434"}/api/tags`,
+        options: { method: "GET" },
+      };
+    default:
+      return {
+        url: `${trimmedEndpoint || "https://api.openai.com"}/v1/models`,
+        options: {
+          method: "GET",
+          headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+        },
+      };
+  }
+}
+
+async function verifyApiKey(provider, apiKey, apiEndpoint) {
+  const request = buildVerificationRequest(provider, apiKey, apiEndpoint);
+  if (!request) throw new Error("Unsupported provider");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(request.url, { ...(request.options || {}), signal: controller.signal });
+    const detail = await response.text().catch(() => "");
+    return {
+      ok: response.ok,
+      status: response.status,
+      detail: detail?.slice(0, 300),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function performAction(game, type, payload = {}) {
   switch (type) {
@@ -70,8 +159,8 @@ app.get("/", (req, res) => {
 
 // Create a new game
 app.post("/api/games", (req, res) => {
-  const { numPlayers } = req.body || {};
-  const game = new CatanGame({ numPlayers: numPlayers || 4 });
+  const { numPlayers, playerConfigs = [] } = req.body || {};
+  const game = new CatanGame({ numPlayers: numPlayers || 4, playerConfigs });
   games.set(game.id, game);
   res.json(game.getState());
 });
@@ -154,12 +243,60 @@ app.post("/api/games/:id/llm-turn", async (req, res) => {
   if (!game) return res.status(404).json({ error: "Game not found" });
 
   try {
-    const { model = DEFAULT_MODEL, notes, autoApply = true } = req.body || {};
-    const action = await getLLMAction(game, { model, notes });
+    const { model, notes, autoApply = true, apiKey, apiEndpoint } = req.body || {};
+    const agentConfig = typeof game.getPlayerAgent === "function"
+      ? game.getPlayerAgent(game.current)
+      : null;
 
+    const llmConfig = {
+      ...(agentConfig || {}),
+      model: model || agentConfig?.model || DEFAULT_MODEL,
+      apiKey: apiKey || agentConfig?.apiKey,
+      apiEndpoint: apiEndpoint || agentConfig?.apiEndpoint,
+    };
+
+    if (!llmConfig.apiKey && !process.env.OPENAI_API_KEY) {
+      return res.status(400).json({
+        ok: false,
+        error: "No API key configured for this AI player.",
+      });
+    }
+
+    let action = null;
     let event = null;
-    if (autoApply !== false) {
-      event = performAction(game, action.action, action.payload || {});
+    let lastError = null;
+
+    for (let attempt = 0; attempt < MAX_LLM_ATTEMPTS; attempt += 1) {
+      try {
+        const augmentedNotes =
+          lastError && notes
+            ? `${notes} | Previous error: ${lastError}`
+            : lastError
+              ? `Previous error: ${lastError}`
+              : notes;
+
+        action = await getLLMAction(game, { llmConfig, notes: augmentedNotes });
+
+        if (autoApply !== false) {
+          event = performAction(game, action.action, action.payload || {});
+        }
+
+        // Success
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err.message;
+        action = null;
+        event = null;
+      }
+    }
+
+    if (lastError) {
+      return res.status(400).json({
+        ok: false,
+        error: lastError,
+        attempts: MAX_LLM_ATTEMPTS,
+      });
     }
 
     if (typeof game._emit === "function") {
@@ -181,6 +318,43 @@ app.post("/api/games/:id/llm-turn", async (req, res) => {
   } catch (err) {
     console.error("LLM turn failed:", err.message);
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// API key verification
+app.post("/api/llm/verify-key", async (req, res) => {
+  const { provider, apiKey, apiEndpoint } = req.body || {};
+
+  if (!provider) {
+    return res.status(400).json({ ok: false, error: "Provider is required for verification." });
+  }
+
+  const requiresKey = provider !== "ollama";
+  if (requiresKey && !apiKey) {
+    return res.status(400).json({ ok: false, error: "API key is required for this provider." });
+  }
+
+  try {
+    const result = await verifyApiKey(provider, apiKey, apiEndpoint);
+    if (result.ok) {
+      return res.json({
+        ok: true,
+        status: result.status,
+        message: "Provider accepted the credentials.",
+      });
+    }
+
+    return res.status(result.status === 401 ? 401 : 400).json({
+      ok: false,
+      error: result.status === 401 ? "Provider rejected API key." : `Verification failed (${result.status})`,
+      detail: result.detail,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: "Unable to verify API key.",
+      detail: err.message,
+    });
   }
 });
 

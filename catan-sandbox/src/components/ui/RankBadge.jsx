@@ -54,6 +54,8 @@ RankBadge.propTypes = {
 /**
  * Leaderboard row component
  */
+import { PlayerLabel } from "./PlayerChip";
+
 export function LeaderboardRow({ player, rank, showStats = false, compact = false, className }) {
   const playerColor = getPlayerColor(player?.id || 0);
   const rankColor = getRankColor(rank);
@@ -88,12 +90,15 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
             boxShadow: `0 0 6px ${playerColor.primary}50`,
           }}
         />
-        <span className={cn(
-          "font-medium text-slate-200 truncate",
-          compact ? "text-[11px]" : "text-[13px]"
-        )}>
-          {player?.name || "Unknown"}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={cn(
+            "font-medium text-slate-200 truncate",
+            compact ? "text-[11px]" : "text-[13px]"
+          )}>
+            {player?.name || "Unknown"}
+          </span>
+          <PlayerLabel playerId={player?.id || 0} size="sm" />
+        </div>
       </div>
 
       {/* VP */}

@@ -219,25 +219,18 @@ ResourceDistributionChart.propTypes = {
 };
 
 // VP Progress chart
-function VPProgressChart({ players }) {
-  // Simulated VP progress data
+function VPProgressChart({ players, gameStats }) {
   const data = useMemo(() => {
-    const turns = Math.floor(Math.random() * 10) + 5;
-    const progressData = [];
-    
-    for (let i = 0; i <= turns; i++) {
-      const entry = { turn: i };
-      players.forEach(player => {
-        const maxVP = player.victoryPoints || 0;
-        entry[player.name] = Math.min(
-          Math.floor(maxVP * (i / turns) + Math.random() * 0.5), 
-          maxVP
-        );
-      });
-      progressData.push(entry);
-    }
-    return progressData;
-  }, [players]);
+    const turnNumber = gameStats?.turn || 1;
+    const current = { turn: turnNumber };
+
+    players.forEach((player) => {
+      current[player.name] = player.victoryPoints || player.vp || 0;
+    });
+
+    const previous = { ...current, turn: Math.max(0, turnNumber - 1) };
+    return [previous, current];
+  }, [players, gameStats]);
 
   return (
     <ResponsiveContainer width="100%" height={180}>
@@ -272,6 +265,7 @@ function VPProgressChart({ players }) {
 
 VPProgressChart.propTypes = {
   players: PropTypes.array.isRequired,
+  gameStats: PropTypes.object,
 };
 
 // Player efficiency radar
@@ -382,30 +376,49 @@ export function StatsDashboard({ players, gameStats }) {
     const stats = {};
     players.forEach(p => {
       stats[p.id] = {
-        towns: p.towns || Math.floor(Math.random() * 4),
-        cities: p.cities || Math.floor(Math.random() * 3),
-        roads: p.roads || Math.floor(Math.random() * 10) + 3,
-        trades: p.trades || Math.floor(Math.random() * 8),
-        devCards: p.devCards || Math.floor(Math.random() * 5),
+        towns: p.towns || 0,
+        cities: p.cities || 0,
+        roads: p.roads || 0,
+        trades: p.trades || 0,
+        devCards: Array.isArray(p.devCards) ? p.devCards.length : (p.devCards || 0),
       };
     });
     return stats;
   }, [players]);
 
-  const maxValues = useMemo(() => ({
-    vp: 10,
-    resources: Math.max(...players.map(p => Object.values(p.resources || {}).reduce((a, b) => a + b, 0))),
-    towns: 5,
-    cities: 4,
-    roads: 15,
-  }), [players]);
+  const maxValues = useMemo(() => {
+    const resourcesTotals = players.map(p => Object.values(p.resources || {}).reduce((a, b) => a + b, 0));
+    const towns = players.map(p => p.towns || 0);
+    const cities = players.map(p => p.cities || 0);
+    const roads = players.map(p => p.roads || 0);
+    const safeMax = (arr, fallback = 0) => (arr.length ? Math.max(...arr, fallback) : fallback);
 
-  const overallStats = useMemo(() => ({
-    totalTurns: gameStats?.turns || Math.floor(Math.random() * 30) + 10,
-    totalTrades: Object.values(playerStats).reduce((a, s) => a + s.trades, 0),
-    totalBuildings: Object.values(playerStats).reduce((a, s) => a + s.towns + s.cities, 0),
-    totalRoads: Object.values(playerStats).reduce((a, s) => a + s.roads, 0),
-  }), [gameStats, playerStats]);
+    return {
+      vp: 10,
+      resources: safeMax(resourcesTotals, 0),
+      towns: safeMax(towns, 0),
+      cities: safeMax(cities, 0),
+      roads: safeMax(roads, 0),
+    };
+  }, [players]);
+
+  const overallStats = useMemo(() => {
+    const totals = Object.values(playerStats).reduce(
+      (acc, s) => ({
+        trades: acc.trades + (s.trades || 0),
+        buildings: acc.buildings + (s.towns || 0) + (s.cities || 0),
+        roads: acc.roads + (s.roads || 0),
+      }),
+      { trades: 0, buildings: 0, roads: 0 }
+    );
+
+    return {
+      totalTurns: gameStats?.turn || 1,
+      totalTrades: totals.trades,
+      totalBuildings: totals.buildings,
+      totalRoads: totals.roads,
+    };
+  }, [gameStats, playerStats]);
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden p-4">
@@ -414,7 +427,7 @@ export function StatsDashboard({ players, gameStats }) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2">
-              <ChartBar size={20} className="text-indigo-400" />
+              <ChartBar size={16} className="text-indigo-400" />
               Game Analytics
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Real-time statistics and insights</p>
@@ -470,7 +483,7 @@ export function StatsDashboard({ players, gameStats }) {
               </div>
             </CardSection>
             <CardSection className="p-3">
-              <VPProgressChart players={players} />
+              <VPProgressChart players={players} gameStats={gameStats} />
             </CardSection>
           </Card>
 

@@ -2,7 +2,8 @@
 // OpenAI helper that turns a CatanGame state into a structured action suggestion.
 const OpenAI = require("openai");
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+// Default to OpenAI's gpt-4o for all agents unless explicitly overridden.
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 
 // Canonical list of supported server actions + expected payload shape hints
 const ACTION_SCHEMA = {
@@ -48,10 +49,12 @@ function buildSystemPrompt() {
   return [
     "You are an expert Settlers of Catan player. Play strictly by standard rules.",
     "- Always act for the CURRENT player id passed in the snapshot.",
-    "- Output ONLY JSON that matches the provided schema (action/payload/reason/confidence).",
+    "- Output ONLY JSON that matches the provided schema (action/payload/reason/confidence). No code fences, no markdown.",
     "- Costs: road=wood+brick, town=wood+brick+wheat+sheep, city=2 wheat + 3 ore, dev card=sheep+wheat+ore.",
     "- Enforce: player must roll before building/trading/buying dev cards; towns/cities cannot be adjacent; roads must connect to player network; respect longest road/largest army.",
     "- Dice on 7: choose moveRobber with hexId away from desert to block opponents; otherwise rollDice before building/trading.",
+    "- Strongly prefer productive actions: after rolling (and when legal), prioritize buildRoad/buildTown/buildCity/buyDevCard over moving the robber. Only moveRobber on a 7 or when playing a Knight.",
+    "- Robber restriction: only one moveRobber action is allowed per turn. If the robber already moved this turn, do NOT suggest moveRobber again.",
     "- If no productive action exists, endTurn. Prefer growing VP and resource production.",
   ].join("\n");
 }
@@ -107,12 +110,23 @@ function summarizeGame(game) {
   };
 }
 
-function getClient(provided) {
-  if (provided) return provided;
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set; cannot call OpenAI.");
+function getClient(config = {}) {
+  if (config.client) return config.client;
+
+  const apiKey = config.apiKey || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("No API key available for LLM call.");
   }
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  // Allow custom endpoints (e.g., Azure or self-hosted OpenAI-compatible APIs)
+  const baseURL = config.apiEndpoint
+    ? `${config.apiEndpoint.replace(/\/$/, "")}${config.apiEndpoint.includes("/v1") ? "" : "/v1"}`
+    : undefined;
+
+  const clientOptions = { apiKey };
+  if (baseURL) clientOptions.baseURL = baseURL;
+
+  return new OpenAI(clientOptions);
 }
 
 function parseActionResponse(response) {
@@ -123,8 +137,13 @@ function parseActionResponse(response) {
 
   const textBlock = blocks.find((b) => typeof b.text === "string");
   if (textBlock?.text) {
+    // Strip common Markdown code fences before parsing.
+    let cleaned = textBlock.text.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "").replace(/```$/, "").trim();
+    }
     try {
-      return JSON.parse(textBlock.text);
+      return JSON.parse(cleaned);
     } catch (err) {
       throw new Error("Model returned non-JSON text: " + textBlock.text);
     }
@@ -133,35 +152,43 @@ function parseActionResponse(response) {
   throw new Error("Could not parse action from model response.");
 }
 
-async function getLLMAction(game, { model = DEFAULT_MODEL, notes, client } = {}) {
-  const openai = getClient(client);
+async function getLLMAction(
+  game,
+  { llmConfig = {}, model, notes, client, apiKey, apiEndpoint } = {}
+) {
+  const mergedConfig = {
+    ...llmConfig,
+    model: model || llmConfig.model || DEFAULT_MODEL,
+    apiKey: apiKey || llmConfig.apiKey,
+    apiEndpoint: apiEndpoint || llmConfig.apiEndpoint,
+    client,
+  };
+
+  const openai = getClient(mergedConfig);
   const snapshot = summarizeGame(game);
   const prompt = buildSystemPrompt();
 
   const response = await openai.responses.create({
-    model,
+    model: mergedConfig.model,
     input: [
-      { role: "system", content: prompt },
+      {
+        role: "system",
+        content: `${prompt}\nReturn ONLY raw JSON conforming to the schema (no markdown, no code fences, no extra text): ${JSON.stringify(
+          ACTION_SCHEMA
+        )}.`,
+      },
       {
         role: "user",
         content: `Decide the next action for player ${snapshot.currentPlayer?.name} (id ${snapshot.currentPlayer?.id}). Optional notes: ${notes || "none"}.\nSnapshot:\n${JSON.stringify(snapshot)}`,
       },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "catan_action",
-        schema: ACTION_SCHEMA,
-        strict: true,
-      },
-    },
   });
 
   const parsed = parseActionResponse(response);
 
   return {
     ...parsed,
-    model,
+    model: mergedConfig.model,
     snapshot,
     usage: response.usage,
   };

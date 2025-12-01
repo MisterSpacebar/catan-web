@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { motion } from "framer-motion";
 import {
@@ -22,19 +22,51 @@ import {
 } from "@phosphor-icons/react";
 import { getPlayerColor } from "../lib/colors";
 import { cn, resourceEmoji } from "../lib/utils";
+import { PROVIDER_ICONS, PROVIDER_COLORS, WHITE_LOGO_PROVIDERS } from "../lib/providers";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/Card";
 import { Collapsible } from "./ui/Collapsible";
 import { PlayerDot, PlayerLabel, PlayerTurnChip, PlayerCard } from "./ui/PlayerChip";
 import { ResourceGrid, ResourceSummary } from "./ui/ResourceChip";
 import { RankBadge, LeaderboardRow } from "./ui/RankBadge";
 import { Button } from "./ui/Button";
+import { QuickRulesPanel } from "./QuickRulesPanel";
 
-// Model icons mapping
+// Model icons mapping (fallback for players without provider info)
 const MODEL_ICONS = {
   human: User,
   ai: Robot,
   default: User,
 };
+
+// Provider Logo component for the dashboard
+function ProviderAvatar({ providerId, size = 16 }) {
+  const IconComponent = PROVIDER_ICONS[providerId];
+  const color = PROVIDER_COLORS[providerId] || "#666";
+  const useWhiteLogo = WHITE_LOGO_PROVIDERS.includes(providerId);
+  
+  if (IconComponent) {
+    // Use the full-color logo on top of the dashboard chip background,
+    // except for brands we intentionally render as white.
+    if (!useWhiteLogo && IconComponent.Color) {
+      return <IconComponent.Color size={size} />;
+    }
+    return <IconComponent size={size} style={{ color: useWhiteLogo ? "#ffffff" : color }} />;
+  }
+  
+  // Fallback for unknown providers
+  return (
+    <div
+      className="rounded flex items-center justify-center font-bold text-white text-[8px]"
+      style={{
+        width: size,
+        height: size,
+        background: color,
+      }}
+    >
+      {providerId?.slice(0, 2).toUpperCase() || "AI"}
+    </div>
+  );
+}
 
 /**
  * Dice display component
@@ -57,10 +89,12 @@ DiceDisplay.propTypes = {
 };
 
 /**
- * Player info row with model type
+ * Player info row with model type and AI provider info
  */
 function PlayerInfoRow({ player, isSelected, onSelect }) {
   const color = getPlayerColor(player.id);
+  const isAI = player.model === "ai" || player.provider;
+  const hasProviderInfo = player.provider && PROVIDER_ICONS[player.provider];
   const ModelIcon = MODEL_ICONS[player.model] || MODEL_ICONS.default;
   const resources = player.resources || {};
   const totalResources = Object.values(resources).reduce((a, b) => a + b, 0);
@@ -76,11 +110,15 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
         {/* Header row */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            {/* Model icon */}
+            {/* Model/Provider icon */}
             <div 
-              className="w-7 h-7 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-700/40 to-slate-800/60 shadow-sm shadow-black/20"
+              className="w-6 h-6 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-700/40 to-slate-800/60 shadow-sm shadow-black/20 overflow-hidden"
             >
-              <ModelIcon size={14} style={{ color: color.primary }} />
+              {hasProviderInfo ? (
+                <ProviderAvatar providerId={player.provider} size={14} />
+              ) : (
+                <ModelIcon size={12} style={{ color: color.primary }} />
+              )}
             </div>
             
             {/* Player name and label */}
@@ -89,8 +127,20 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
                 <span className="text-[13px] font-semibold text-slate-200">{player.name}</span>
                 <PlayerLabel playerId={player.id} size="sm" showDot={false} />
               </div>
-              <div className="text-[11px] text-slate-500 capitalize">
-                {player.model || "Human"} Player
+              <div className="text-[11px] text-slate-500">
+                {isAI && player.providerModel ? (
+                  <span className="flex items-center gap-1">
+                    <Robot size={10} className="text-indigo-400" />
+                    <span className="text-indigo-400/80">{player.providerModel}</span>
+                  </span>
+                ) : isAI ? (
+                  <span className="flex items-center gap-1">
+                    <Robot size={10} className="text-indigo-400" />
+                    <span className="text-indigo-400/80">AI Player</span>
+                  </span>
+                ) : (
+                  <span className="capitalize">{player.model || "Human"} Player</span>
+                )}
               </div>
             </div>
           </div>
@@ -99,9 +149,7 @@ function PlayerInfoRow({ player, isSelected, onSelect }) {
           <div 
             className="px-2.5 py-1 rounded-xl text-[13px] font-bold shadow-sm"
             style={{ 
-              // background: `linear-gradient(135deg, ${color.primary}20, ${color.primary}10)`,
               color: color.primary,
-              // boxShadow: `0 2px 8px ${color.primary}15`,
             }}
           >
             {player.victoryPoints || 0}
@@ -262,6 +310,7 @@ export function PlayerDashboard({
   currentPlayer,
   lastRoll,
   lastProduction,
+  actionLog = [],
   onRollDice,
   onSelectPlayer,
   onEndTurn,
@@ -273,6 +322,21 @@ export function PlayerDashboard({
   onBuyDevCard,
   onShowDevCards,
 }) {
+  const [selectedId, setSelectedId] = useState(
+    typeof currentPlayer === "number" ? currentPlayer : currentPlayer?.id
+  );
+
+  useEffect(() => {
+    const incomingId =
+      typeof currentPlayer === "number" ? currentPlayer : currentPlayer?.id;
+    if (incomingId !== undefined && incomingId !== selectedId) {
+      setSelectedId(incomingId);
+    }
+  }, [currentPlayer, selectedId]);
+
+  const currentPlayerId =
+    typeof currentPlayer === "number" ? currentPlayer : currentPlayer?.id;
+
   // Calculate rankings
   const rankings = useMemo(() => {
     const sorted = [...players].sort((a, b) => 
@@ -281,11 +345,15 @@ export function PlayerDashboard({
     return sorted;
   }, [players]);
 
-  // Get current turn player
-  const currentTurnPlayer = players.find(p => p.isCurrentTurn) || players[0];
-  
+  // Get current turn player using the currentPlayer prop, not an isCurrentTurn flag
+  const currentIndex = (() => {
+    const byId = players.findIndex((p) => p.id === currentPlayerId);
+    return byId !== -1 ? byId : 0;
+  })();
+
+  const currentTurnPlayer = players[currentIndex] || players[0];
+
   // Get next turn player
-  const currentIndex = players.findIndex(p => p.isCurrentTurn);
   const nextIndex = (currentIndex + 1) % players.length;
   const nextTurnPlayer = players[nextIndex];
 
@@ -300,9 +368,17 @@ export function PlayerDashboard({
   }, [players, currentIndex]);
 
   // Get selected player object
-  const selectedPlayer = typeof currentPlayer === 'number' 
-    ? players.find(p => p.id === currentPlayer) 
-    : currentPlayer;
+  const selectedPlayer = players.find((p) => p.id === selectedId) || null;
+  const handleSelectPlayer = (player) => {
+    setSelectedId(player?.id);
+    onSelectPlayer?.(player);
+  };
+  const isActivePlayer = (player) => player?.id === currentPlayerId;
+
+  const roll1 = lastRoll?.die1 ?? lastRoll?.d1 ?? null;
+  const roll2 = lastRoll?.die2 ?? lastRoll?.d2 ?? null;
+  const rollSum =
+    typeof roll1 === "number" && typeof roll2 === "number" ? roll1 + roll2 : null;
 
   return (
     <Card className="h-full overflow-hidden">
@@ -327,8 +403,8 @@ export function PlayerDashboard({
               <PlayerInfoRow
                 key={player.id}
                 player={player}
-                isSelected={selectedPlayer?.id === player.id}
-                onSelect={onSelectPlayer}
+                isSelected={selectedPlayer?.id === player.id || isActivePlayer(player)}
+                onSelect={handleSelectPlayer}
               />
             ))}
           </div>
@@ -376,13 +452,17 @@ export function PlayerDashboard({
             {lastRoll && (
               <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
                 <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Last Roll</div>
-                <div className="flex items-center gap-2">
-                  <DiceDisplay value={lastRoll.die1} />
-                  <DiceDisplay value={lastRoll.die2} />
-                  <div className="ml-2 text-2xl font-bold text-slate-200">
-                    = {lastRoll.die1 + lastRoll.die2}
+                {roll1 != null && roll2 != null ? (
+                  <div className="flex items-center gap-2">
+                    <DiceDisplay value={roll1} />
+                    <DiceDisplay value={roll2} />
+                    <div className="ml-2 text-2xl font-bold text-slate-200">
+                      = {rollSum}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-sm text-slate-400">No roll yet</div>
+                )}
               </div>
             )}
 
@@ -461,6 +541,66 @@ export function PlayerDashboard({
             </div>
           </Collapsible>
         )}
+
+        {/* Action Log */}
+        <Collapsible
+          title="Action Log"
+          icon={Eye}
+          defaultOpen={false}
+          variant="elevated"
+        >
+          <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+            {actionLog.length === 0 && (
+              <div className="text-xs text-slate-500">No messages yet.</div>
+            )}
+            {[...actionLog].reverse().map((entry, idx) => (
+              <div
+                key={entry.id || idx}
+                className="p-2 rounded-xl bg-slate-900/60 border border-slate-800/70 text-xs text-slate-200"
+              >
+                <div className="flex items-start gap-2">
+                  {entry.provider && (
+                    <div className="pt-0.5">
+                      <ProviderAvatar providerId={entry.provider} size={14} />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-slate-300 truncate">
+                          {entry.playerName || "Player"}
+                        </span>
+                        {entry.playerId !== undefined && (
+                          <PlayerLabel playerId={entry.playerId} size="sm" />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                        {entry.turn ? `T${entry.turn} • ` : ""}
+                        {new Date(entry.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    {entry.providerModel && (
+                      <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <span>{entry.providerModel}</span>
+                      </div>
+                    )}
+                    <div className="text-slate-300 leading-snug">
+                      {entry.message}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Collapsible>
+
+        <div className="pt-2">
+          <QuickRulesPanel />
+        </div>
       </CardContent>
     </Card>
   );
@@ -471,6 +611,7 @@ PlayerDashboard.propTypes = {
   currentPlayer: PropTypes.oneOfType([PropTypes.object, PropTypes.number]),
   lastRoll: PropTypes.object,
   lastProduction: PropTypes.object,
+  actionLog: PropTypes.array,
   onRollDice: PropTypes.func.isRequired,
   onSelectPlayer: PropTypes.func.isRequired,
   onEndTurn: PropTypes.func,
