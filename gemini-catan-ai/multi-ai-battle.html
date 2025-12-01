@@ -79,6 +79,48 @@
             border-radius: 5px;
             background: rgba(255,255,255,0.1);
             animation: slideIn 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .log-entry.dice { 
+            background: rgba(255, 215, 0, 0.2); 
+            border-left-color: #FFD700; 
+        }
+        
+        .log-entry.build { 
+            background: rgba(76, 175, 80, 0.2); 
+            border-left-color: #4CAF50; 
+        }
+        
+        .log-entry.robber { 
+            background: rgba(156, 39, 176, 0.2); 
+            border-left-color: #9C27B0; 
+        }
+        
+        .log-entry.resource { 
+            background: rgba(33, 150, 243, 0.2); 
+            border-left-color: #2196F3; 
+        }
+        
+        .log-entry.dev-card { 
+            background: rgba(255, 152, 0, 0.2); 
+            border-left-color: #FF9800; 
+        }
+        
+        .log-entry.victory { 
+            background: rgba(244, 67, 54, 0.2); 
+            border-left-color: #F44336; 
+            font-weight: bold;
+        }
+        
+        .log-entry.turn-end { 
+            background: rgba(96, 125, 139, 0.2); 
+            border-left-color: #607D8B; 
+        }
+        
+        .log-entry.warning { 
+            background: rgba(255, 87, 34, 0.3); 
+            border-left-color: #FF5722; 
         }
         
         @keyframes slideIn {
@@ -114,14 +156,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>🤖 Multi-AI Catan Battle Arena</h1>
-        <p>Watch Gemini AI agents compete against each other in real-time!</p>
+        <h1>Multi-AI Catan Endpoint Checking</h1>
+        <p>Multiple Gemini AI agents compete against each other</p>
         
         <div class="controls">
-            <button class="btn-primary" onclick="startNewBattle()">🚀 Start New Battle</button>
-            <button class="btn-info" onclick="playNextTurn()" id="nextTurnBtn" disabled>⏭️ Next Turn</button>
-            <button class="btn-warning" onclick="autoPlay()" id="autoPlayBtn" disabled>🔄 Auto Play</button>
-            <button class="btn-danger" onclick="stopBattle()">⏹️ Stop Battle</button>
+            <button class="btn-primary" onclick="startNewBattle()">Start New Battle</button>
+            <button class="btn-info" onclick="playNextTurn()" id="nextTurnBtn" disabled>⏭Next Turn</button>
+            <button class="btn-warning" onclick="autoPlay()" id="autoPlayBtn" disabled>Auto Play</button>
+            <button class="btn-danger" onclick="stopBattle()">⏹Stop Battle</button>
         </div>
         
         <div class="game-status" id="gameStatus">
@@ -136,9 +178,9 @@
         </div>
         
         <div class="log-container" id="logContainer">
-            <h4>📝 Battle Log</h4>
+            <h4>Battle Log</h4>
             <div id="battleLog">
-                <div class="log-entry">Battle arena ready! Start a new game to begin.</div>
+                <div class="log-entry">Start a new game to begin.</div>
             </div>
         </div>
     </div>
@@ -157,10 +199,15 @@
             const logContainer = document.getElementById('battleLog');
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
+            logEntry.className = `log-entry ${type}`;
             logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
             logContainer.appendChild(logEntry);
             logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 100 log entries for performance
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
         }
 
         async function startNewBattle() {
@@ -199,14 +246,14 @@
             }
 
             try {
-                // Get current game state
-                const stateResponse = await fetch(`${CATAN_API}/api/games/${currentGameId}`);
-                gameState = await stateResponse.json();
+                // Get current game state BEFORE the turn
+                const beforeStateResponse = await fetch(`${CATAN_API}/api/games/${currentGameId}`);
+                const beforeState = await beforeStateResponse.json();
                 
-                const currentPlayer = gameState.current;
+                const currentPlayer = beforeState.current;
                 turnCount++;
                 
-                log(`🎯 Turn ${turnCount}: Player ${currentPlayer}'s turn`, 'info');
+                log(`🎯 Turn ${turnCount}: Player ${currentPlayer}'s turn begins`, 'info');
                 
                 // Make AI decision
                 const aiResponse = await fetch(`${GEMINI_AI_API}/ai/play-turn/${currentGameId}/${currentPlayer}`, {
@@ -222,10 +269,17 @@
                 const reasoning = aiResult.decision?.reasoning || 'No reasoning provided';
                 
                 log(`🤖 Player ${currentPlayer} chose: ${action}`, 'success');
-                log(`💭 Reasoning: ${reasoning.substring(0, 100)}...`, 'info');
+                log(`💭 Reasoning: ${reasoning.substring(0, 80)}...`, 'info');
                 
-                // Update display
-                await updateGameState();
+                // Get game state AFTER the turn to see what changed
+                const afterStateResponse = await fetch(`${CATAN_API}/api/games/${currentGameId}`);
+                const afterState = await afterStateResponse.json();
+                
+                // Log detailed board changes
+                logBoardChanges(beforeState, afterState, currentPlayer, action);
+                
+                // Update our local game state
+                gameState = afterState;
                 updateGameStatus();
                 updatePlayersDisplay();
                 
@@ -240,6 +294,119 @@
             } catch (error) {
                 log(`❌ Turn failed: ${error.message}`, 'error');
                 // Try to continue the battle even if one turn fails
+            }
+        }
+
+        function logBoardChanges(beforeState, afterState, playerId, actionType) {
+            const playerColors = ['🔴', '🔵', '🟢', '🟡'];
+            const playerIcon = playerColors[playerId] || '⚫';
+            
+            // Check dice roll
+            if (afterState.dice && beforeState.dice) {
+                const afterDice = Array.isArray(afterState.dice) ? afterState.dice : [afterState.dice];
+                const beforeDice = Array.isArray(beforeState.dice) ? beforeState.dice : [beforeState.dice];
+                
+                if (JSON.stringify(afterDice) !== JSON.stringify(beforeDice)) {
+                    const total = afterDice.reduce((a, b) => a + b, 0);
+                    log(`${playerIcon} 🎲 Rolled: ${afterDice.join(' + ')} = ${total}`, 'dice');
+                    
+                    if (total === 7) {
+                        log(`${playerIcon} ⚠️ Rolled 7! Robber must be moved`, 'warning');
+                    }
+                }
+            }
+            
+            // Check for new buildings
+            const beforeBuildings = (beforeState.board?.nodes || []).filter(n => n.building);
+            const afterBuildings = (afterState.board?.nodes || []).filter(n => n.building);
+            
+            if (afterBuildings.length > beforeBuildings.length) {
+                const newBuildings = afterBuildings.filter(after => 
+                    !beforeBuildings.some(before => 
+                        before.id === after.id && before.building?.type === after.building?.type
+                    )
+                );
+                
+                for (const building of newBuildings) {
+                    if (building.building?.ownerId === playerId) {
+                        const buildingType = building.building.type;
+                        let buildingIcon = '🏗️';
+                        if (buildingType === 'settlement') buildingIcon = '🏠';
+                        else if (buildingType === 'city') buildingIcon = '🏛️';
+                        
+                        log(`${playerIcon} ${buildingIcon} Built ${buildingType} at node ${building.id}`, 'build');
+                        
+                        // Log victory point gain from building
+                        const vpGain = buildingType === 'settlement' ? 1 : buildingType === 'city' ? 1 : 0;
+                        if (vpGain > 0) {
+                            log(`${playerIcon} ⭐ +${vpGain} VP from ${buildingType}`, 'victory');
+                        }
+                    }
+                }
+            }
+            
+            // Check for new roads
+            const beforeRoads = (beforeState.board?.edges || []).filter(e => e.road);
+            const afterRoads = (afterState.board?.edges || []).filter(e => e.road);
+            
+            if (afterRoads.length > beforeRoads.length) {
+                const newRoads = afterRoads.filter(after => 
+                    !beforeRoads.some(before => before.id === after.id && before.road)
+                );
+                
+                for (const road of newRoads) {
+                    if (road.ownerId === playerId) {
+                        log(`${playerIcon} 🛤️ Built road on edge ${road.id}`, 'build');
+                    }
+                }
+            }
+            
+            // Check robber movement
+            const beforeRobber = beforeState.board?.robberHex;
+            const afterRobber = afterState.board?.robberHex;
+            
+            if (beforeRobber !== afterRobber) {
+                log(`${playerIcon} 🦹 Moved robber from hex ${beforeRobber} to hex ${afterRobber}`, 'robber');
+            }
+            
+            // Check resource changes
+            const beforePlayer = beforeState.players?.[playerId];
+            const afterPlayer = afterState.players?.[playerId];
+            
+            if (beforePlayer && afterPlayer) {
+                // Count total resources
+                const beforeResources = Object.values(beforePlayer.resources || {}).reduce((a, b) => a + b, 0);
+                const afterResources = Object.values(afterPlayer.resources || {}).reduce((a, b) => a + b, 0);
+                
+                if (afterResources > beforeResources) {
+                    const gained = afterResources - beforeResources;
+                    log(`${playerIcon} 📦 Gained ${gained} resource${gained > 1 ? 's' : ''} from dice/trade`, 'resource');
+                } else if (afterResources < beforeResources) {
+                    const spent = beforeResources - afterResources;
+                    log(`${playerIcon} 💰 Spent ${spent} resource${spent > 1 ? 's' : ''} for ${actionType}`, 'resource');
+                }
+                
+                // Check development cards
+                const beforeDevCards = beforePlayer.developmentCards?.length || 0;
+                const afterDevCards = afterPlayer.developmentCards?.length || 0;
+                
+                if (afterDevCards > beforeDevCards) {
+                    log(`${playerIcon} 🃏 Bought development card`, 'dev-card');
+                }
+                
+                // Check victory points
+                const beforeVP = beforePlayer.vp || beforePlayer.victoryPoints || 0;
+                const afterVP = afterPlayer.vp || afterPlayer.victoryPoints || 0;
+                
+                if (afterVP > beforeVP) {
+                    const gained = afterVP - beforeVP;
+                    log(`${playerIcon} ⭐ Gained ${gained} Victory Point${gained > 1 ? 's' : ''} (now ${afterVP}/10)`, 'victory');
+                }
+            }
+            
+            // Log turn end
+            if (beforeState.current === playerId && afterState.current !== playerId) {
+                log(`${playerIcon} ✅ Turn ended, passed to Player ${afterState.current}`, 'turn-end');
             }
         }
 
@@ -317,6 +484,35 @@
             banner.className = 'winner-banner';
             banner.innerHTML = `🏆 VICTORY! Player ${winner.id} wins with ${winner.vp} Victory Points! 🏆`;
             container.insertBefore(banner, container.firstChild.nextSibling);
+            
+            // Log final game statistics
+            setTimeout(() => {
+                logBattleStats();
+            }, 1000);
+        }
+        
+        function logBattleStats() {
+            if (!gameState) return;
+            
+            log(`📊 === BATTLE STATISTICS ===`, 'info');
+            log(`🎯 Total turns: ${turnCount}`, 'info');
+            
+            gameState.players?.forEach((player, index) => {
+                const playerColors = ['🔴', '🔵', '🟢', '🟡'];
+                const icon = playerColors[index] || '⚫';
+                const vp = player.vp || player.victoryPoints || 0;
+                const resources = Object.values(player.resources || {}).reduce((a, b) => a + b, 0);
+                const buildings = (gameState.board?.nodes || []).filter(n => 
+                    n.building && n.building.ownerId === index
+                ).length;
+                const roads = (gameState.board?.edges || []).filter(e => 
+                    e.road && e.ownerId === index
+                ).length;
+                
+                log(`${icon} Player ${index}: ${vp} VP, ${buildings} buildings, ${roads} roads, ${resources} resources`, 'info');
+            });
+            
+            log(`🏁 Battle completed!`, 'success');
         }
 
         async function autoPlay() {

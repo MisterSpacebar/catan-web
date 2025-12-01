@@ -1,0 +1,101 @@
+ Battle Log
+[12:06:14 AM] 💭 Reasoning: Mock mode: selected the first legal action (buyDevCard)....
+[12:06:14 AM] 🔴 💰 Spent 3 resources for buyDevCard
+[12:06:17 AM] 🎯 Turn 77: Player 0's turn begins
+[12:06:17 AM] 🤖 Player 0 chose: buyDevCard
+[12:06:17 AM] 💭 Reasoning: Mock mode: selected the first legal action (buyDevCard)....
+[12:06:17 AM] 🔴 💰 Spent 3 resources for buyDevCard
+[12:06:17 AM] 🔴 ⭐ Gained 1 Victory Point (now 5/10)
+[12:06:20 AM] 🎯 Turn 78: Player 0's turn begins
+[12:06:20 AM] 🤖 Player 0 chose: endTurn
+[12:06:20 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:20 AM] 🔴 ✅ Turn ended, passed to Player 1
+[12:06:23 AM] 🎯 Turn 79: Player 1's turn begins
+[12:06:23 AM] 🤖 Player 1 chose: rollDice
+[12:06:23 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:23 AM] 🔵 📦 Gained 1 resource from dice/trade
+[12:06:26 AM] 🎯 Turn 80: Player 1's turn begins
+[12:06:26 AM] 🤖 Player 1 chose: buildRoad
+[12:06:26 AM] 💭 Reasoning: Mock mode: selected the first legal action (buildRoad)....
+[12:06:26 AM] 🔵 💰 Spent 2 resources for buildRoad
+[12:06:29 AM] 🎯 Turn 81: Player 1's turn begins
+[12:06:29 AM] 🤖 Player 1 chose: endTurn
+[12:06:29 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:29 AM] 🔵 ✅ Turn ended, passed to Player 2
+[12:06:32 AM] 🎯 Turn 82: Player 2's turn begins
+[12:06:32 AM] 🤖 Player 2 chose: rollDice
+[12:06:32 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:35 AM] 🎯 Turn 83: Player 2's turn begins
+[12:06:35 AM] 🤖 Player 2 chose: endTurn
+[12:06:35 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:35 AM] 🟢 ✅ Turn ended, passed to Player 3
+[12:06:38 AM] 🎯 Turn 84: Player 3's turn begins
+[12:06:38 AM] 🤖 Player 3 chose: rollDice
+[12:06:38 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:41 AM] 🎯 Turn 85: Player 3's turn begins
+[12:06:41 AM] 🤖 Player 3 chose: endTurn
+[12:06:41 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:41 AM] 🟡 ✅ Turn ended, passed to Player 0
+[12:06:44 AM] 🎯 Turn 86: Player 0's turn begins
+[12:06:44 AM] 🤖 Player 0 chose: rollDice
+[12:06:44 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:44 AM] 🔴 📦 Gained 2 resources from dice/trade
+[12:06:47 AM] 🎯 Turn 87: Player 0's turn begins
+[12:06:47 AM] 🤖 Player 0 chose: harborTrade
+[12:06:47 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:06:47 AM] 🔴 💰 Spent 3 resources for harborTrade
+[12:06:50 AM] 🎯 Turn 88: Player 0's turn begins
+[12:06:50 AM] 🤖 Player 0 chose: endTurn
+[12:06:50 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:50 AM] 🔴 ✅ Turn ended, passed to Player 1
+[12:06:53 AM] 🎯 Turn 89: Player 1's turn begins
+[12:06:53 AM] 🤖 Player 1 chose: rollDice
+[12:06:53 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:56 AM] 🎯 Turn 90: Player 1's turn begins
+[12:06:56 AM] 🤖 Player 1 chose: endTurn
+[12:06:56 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:06:56 AM] 🔵 ✅ Turn ended, passed to Player 2
+[12:06:59 AM] 🎯 Turn 91: Player 2's turn begins
+[12:06:59 AM] 🤖 Player 2 chose: rollDice
+[12:06:59 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:06:59 AM] 🟢 📦 Gained 1 resource from dice/trade
+[12:07:02 AM] 🎯 Turn 92: Player 2's turn begins
+[12:07:02 AM] 🤖 Player 2 chose: harborTrade
+[12:07:02 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:07:02 AM] 🟢 💰 Spent 2 resources for harborTrade
+[12:07:05 AM] 🎯 Turn 93: Player 2's turn begins
+[12:07:05 AM] 🤖 Player 2 chose: harborTrade
+[12:07:05 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:07:05 AM] 🟢 💰 Spent 1 resource for harborTrade
+[12:07:08 AM] 🎯 Turn 94: Player 2's turn begins
+[12:07:08 AM] 🤖 Player 2 chose: endTurn
+[12:07:08 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:07:08 AM] 🟢 ✅ Turn ended, passed to Player 3
+[12:07:46 AM] 🎯 Turn 95: Player 3's turn begins
+[12:07:46 AM] 🤖 Player 3 chose: rollDice
+[12:07:46 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:08:46 AM] 🎯 Turn 96: Player 3's turn begins
+[12:08:46 AM] 🤖 Player 3 chose: harborTrade
+[12:08:46 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:08:46 AM] 🟡 💰 Spent 2 resources for harborTrade
+[12:09:07 AM] 🎯 Turn 97: Player 3's turn begins
+[12:09:07 AM] 🤖 Player 3 chose: harborTrade
+[12:09:07 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:09:07 AM] 🟡 💰 Spent 2 resources for harborTrade
+[12:09:07 AM] 🎯 Turn 98: Player 3's turn begins
+[12:09:07 AM] 🤖 Player 3 chose: buildRoad
+[12:09:07 AM] 💭 Reasoning: Mock mode: selected the first legal action (buildRoad)....
+[12:09:07 AM] 🟡 💰 Spent 2 resources for buildRoad
+[12:09:10 AM] 🎯 Turn 99: Player 3's turn begins
+[12:09:10 AM] 🤖 Player 3 chose: endTurn
+[12:09:10 AM] 💭 Reasoning: Mock mode: selected the first legal action (endTurn)....
+[12:09:10 AM] 🟡 ✅ Turn ended, passed to Player 0
+[12:09:13 AM] 🎯 Turn 100: Player 0's turn begins
+[12:09:13 AM] 🤖 Player 0 chose: rollDice
+[12:09:13 AM] 💭 Reasoning: Mock mode: selected the first legal action (rollDice)....
+[12:09:13 AM] 🔴 📦 Gained 2 resources from dice/trade
+[12:09:16 AM] 🎯 Turn 101: Player 0's turn begins
+[12:09:16 AM] 🤖 Player 0 chose: harborTrade
+[12:09:16 AM] 💭 Reasoning: Mock mode: selected the first legal action (harborTrade)....
+[12:09:16 AM] 🔴 💰 Spent 3 resources for harborTrade
+[12:09:19 AM] ⏹️ Battle stopped
