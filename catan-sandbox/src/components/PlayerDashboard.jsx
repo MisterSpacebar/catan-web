@@ -68,6 +68,31 @@ function ProviderAvatar({ providerId, size = 16 }) {
   );
 }
 
+function ProviderMetaRow({ player, className }) {
+  const providerId = player?.provider;
+  if (!providerId) return null;
+  return (
+    <div className={cn("flex items-center gap-2 mt-1 text-[12px] text-slate-300", className)}>
+      <div className="w-7 h-7 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0">
+        <ProviderAvatar providerId={providerId} size={14} />
+      </div>
+      <div className="min-w-0 leading-tight">
+        <div className="font-semibold truncate">
+          {player?.providerName || providerId}
+        </div>
+        {player?.providerModel && (
+          <div className="text-[10px] text-slate-500 truncate">{player.providerModel}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ProviderMetaRow.propTypes = {
+  player: PropTypes.object,
+  className: PropTypes.string,
+};
+
 /**
  * Dice display component
  */
@@ -424,27 +449,31 @@ export function PlayerDashboard({
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Current Turn</div>
               <PlayerTurnChip player={currentTurnPlayer} isActive={true} size="md" />
+              <ProviderMetaRow player={currentTurnPlayer} />
             </div>
 
             {/* Next Turn */}
             <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Next Turn</div>
               <PlayerTurnChip player={nextTurnPlayer} isActive={false} size="md" />
+              <ProviderMetaRow player={nextTurnPlayer} />
             </div>
 
             {/* Turn Queue */}
             {turnQueue.length > 0 && (
               <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
                 <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Upcoming Order</div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {turnQueue.map((player) => (
-                    <PlayerTurnChip
-                      key={player.id}
-                      player={player}
-                      isActive={false}
-                      size="sm"
-                      className="bg-slate-900/60"
-                    />
+                    <div key={player.id} className="flex flex-col">
+                      <PlayerTurnChip
+                        player={player}
+                        isActive={false}
+                        size="sm"
+                        className="bg-slate-900/60"
+                      />
+                      <ProviderMetaRow player={player} className="mt-1" />
+                    </div>
                   ))}
                 </div>
               </div>

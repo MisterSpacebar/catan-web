@@ -3,6 +3,12 @@ import PropTypes from "prop-types";
 import { Crown, Medal, Trophy } from "@phosphor-icons/react";
 import { getRankColor, getPlayerColor } from "../../lib/colors";
 import { cn } from "../../lib/utils";
+import {
+  PROVIDER_ICONS,
+  PROVIDER_COLORS,
+  WHITE_LOGO_PROVIDERS,
+} from "../../lib/providers";
+import { Robot, User } from "@phosphor-icons/react";
 
 /**
  * Rank badge for leaderboard positions
@@ -56,6 +62,45 @@ RankBadge.propTypes = {
  */
 import { PlayerLabel } from "./PlayerChip";
 
+function ProviderMeta({ player }) {
+  const providerId = player?.provider;
+  if (!providerId) return null;
+  const IconComponent = PROVIDER_ICONS[providerId];
+  const color = PROVIDER_COLORS[providerId] || "#94a3b8";
+  const useWhite = WHITE_LOGO_PROVIDERS.includes(providerId);
+  const isHuman = player?.model === "human" || player?.type === "human";
+
+  const renderIcon = () => {
+    if (isHuman) return <User size={12} className="text-slate-400" />;
+    if (IconComponent?.Color && !useWhite) return <IconComponent.Color size={14} />;
+    if (IconComponent) return <IconComponent size={14} style={{ color: useWhite ? "#ffffff" : color }} />;
+    return <Robot size={12} className="text-indigo-300" />;
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 min-w-0">
+      <div
+        className="w-6 h-6 rounded-md bg-slate-900/70 flex items-center justify-center flex-shrink-0"
+        style={{ border: `1px solid ${color}30` }}
+      >
+        {renderIcon()}
+      </div>
+      <div className="leading-tight min-w-0">
+        <div className="text-[11px] text-slate-200 truncate">
+          {player?.providerName || providerId || (isHuman ? "Human" : "AI")}
+        </div>
+        {player?.providerModel && (
+          <div className="text-[10px] text-slate-500 truncate">{player.providerModel}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ProviderMeta.propTypes = {
+  player: PropTypes.object,
+};
+
 export function LeaderboardRow({ player, rank, showStats = false, compact = false, className }) {
   const playerColor = getPlayerColor(player?.id || 0);
   const rankColor = getRankColor(rank);
@@ -99,6 +144,7 @@ export function LeaderboardRow({ player, rank, showStats = false, compact = fals
           </span>
           <PlayerLabel playerId={player?.id || 0} size="sm" />
         </div>
+        <ProviderMeta player={player} />
       </div>
 
       {/* VP */}

@@ -34,9 +34,16 @@ import {
   Lightning,
   Cube,
   Users,
+  Robot,
+  User,
 } from "@phosphor-icons/react";
 import { cn, resourceEmoji, prettyResource } from "../lib/utils";
 import { getPlayerColor, getRankColor } from "../lib/colors";
+import {
+  PROVIDER_ICONS,
+  PROVIDER_COLORS,
+  WHITE_LOGO_PROVIDERS,
+} from "../lib/providers";
 import { Card, CardHeader, CardTitle, CardContent, CardSection } from "./ui/Card";
 import { Collapsible } from "./ui/Collapsible";
 
@@ -99,6 +106,52 @@ StatBar.propTypes = {
   icon: PropTypes.elementType,
 };
 
+// Provider/meta chip similar to PlayerDashboard "Player Information"
+function ProviderBadge({ player, className }) {
+  const providerId = player?.provider;
+  if (!providerId) return null;
+  const IconComponent = PROVIDER_ICONS[providerId];
+  const color = PROVIDER_COLORS[providerId] || "#94a3b8";
+  const useWhite = WHITE_LOGO_PROVIDERS.includes(providerId);
+  const isHuman = player?.model === "human" || player?.type === "human";
+
+  const renderIcon = () => {
+    if (!providerId && isHuman) return <User size={14} className="text-slate-400" />;
+    if (IconComponent?.Color && !useWhite) return <IconComponent.Color size={16} />;
+    if (IconComponent) return <IconComponent size={16} style={{ color: useWhite ? "#ffffff" : color }} />;
+    return <Robot size={14} className="text-indigo-300" />;
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 text-[12px] text-slate-300 min-w-0",
+        className
+      )}
+    >
+      <div
+        className="w-8 h-8 rounded-lg bg-slate-900/70 flex items-center justify-center shadow-inner shadow-black/30 flex-shrink-0"
+        style={{ border: `1px solid ${color}30` }}
+      >
+        {renderIcon()}
+      </div>
+      <div className="min-w-0 leading-tight">
+        <div className="font-semibold truncate">
+          {player?.providerName || providerId || (isHuman ? "Human" : "AI")}
+        </div>
+        {player?.providerModel && (
+          <div className="text-[11px] text-slate-500 truncate">{player.providerModel}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ProviderBadge.propTypes = {
+  player: PropTypes.object,
+  className: PropTypes.string,
+};
+
 // Leaderboard row with rank gradient
 function LeaderboardRow({ player, rank, stats }) {
   const playerColor = getPlayerColor(player.id);
@@ -154,6 +207,7 @@ function LeaderboardRow({ player, rank, stats }) {
               <Path size={10} /> {stats.roads || 0}
             </span>
           </div>
+          <ProviderBadge player={player} className="mt-1" />
         </div>
 
         {/* Score */}
@@ -524,13 +578,7 @@ export function StatsDashboard({ players, gameStats }) {
                     className="p-2.5 border-b border-slate-700/30"
                     style={{ background: `${playerColor.primary}08` }}
                   >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ background: playerColor.primary }}
-                      />
-                      <span className="text-[13px] font-medium text-slate-200">{player.name}</span>
-                    </div>
+                    <ProviderBadge player={player} />
                   </div>
                   
                   <div className="p-2.5 space-y-2">
@@ -591,13 +639,7 @@ export function StatsDashboard({ players, gameStats }) {
           <div className="grid grid-cols-2 gap-2">
             {players.map((player) => (
               <div key={player.id} className="p-2.5 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <div 
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: getPlayerColor(player.id).primary }}
-                  />
-                  <span className="text-[11px] text-slate-400">{player.name}</span>
-                </div>
+                <ProviderBadge player={player} className="mb-2" />
                 <PlayerRadarChart player={player} maxValues={maxValues} />
               </div>
             ))}
