@@ -627,14 +627,13 @@
                 if (!isAutoPlaying) return;
                 
                 const winner = checkForWinner();
-                if (winner || turnCount > 100) { // Safety limit
+                if (winner || turnCount > 500) { // Safety limit
                     stopBattle();
                     return;
                 }
                 
                 await playNextTurn();
                 
-                // Random delay between 1-3 seconds to make it more interesting
                 const delay = 1000 + Math.random() * 2000;
                 setTimeout(() => {}, delay);
                 
