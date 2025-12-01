@@ -1163,7 +1163,7 @@ export default function CatanSandbox() {
             onRollDice={onRollDice}
             onSelectPlayer={(player) => setCurrent(player.id)}
             onEndTurn={endTurn}
-            onEndGame={newGame}
+            onQuit={newGame}
             mode={mode}
             onSetMode={setMode}
             onBuyDevCard={buyDevCard}

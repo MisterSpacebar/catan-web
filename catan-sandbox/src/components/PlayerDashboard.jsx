@@ -23,6 +23,15 @@ import {
   ListChecks,
   Sparkle,
   Hammer,
+  DiceOne,
+  DiceTwo,
+  DiceThree,
+  DiceFour,
+  DiceFive,
+  DiceSix,
+  Plus,
+  Equals,
+  SignOut,
 } from "@phosphor-icons/react";
 import { getPlayerColor } from "../lib/colors";
 import { cn, resourceEmoji } from "../lib/utils";
@@ -96,17 +105,48 @@ ProviderMetaRow.propTypes = {
   className: PropTypes.string,
 };
 
+// Dice icon mapping for values 1-6
+const DICE_ICONS = {
+  1: DiceOne,
+  2: DiceTwo,
+  3: DiceThree,
+  4: DiceFour,
+  5: DiceFive,
+  6: DiceSix,
+};
+
 /**
- * Dice display component
+ * Dice display component using Phosphor dice icons
  */
-function DiceDisplay({ value, isRolling }) {
+function DiceDisplay({ value, isRolling, size = 40 }) {
+  const DiceIcon = DICE_ICONS[value];
+  
+  if (!DiceIcon) {
+    // Fallback for invalid values
+    return (
+      <div 
+        className="rounded-lg bg-gradient-to-br from-slate-100 to-slate-300 shadow-lg flex items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <span className="text-lg font-bold text-slate-800">{value}</span>
+      </div>
+    );
+  }
+  
   return (
     <motion.div
-      animate={isRolling ? { rotate: [0, 10, -10, 10, 0] } : {}}
-      transition={{ duration: 0.3 }}
-      className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-300 shadow-lg flex items-center justify-center"
+      animate={isRolling ? { rotate: [0, 15, -15, 10, -5, 0] } : {}}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="relative"
     >
-      <span className="text-lg font-bold text-slate-800">{value}</span>
+      <DiceIcon 
+        size={size} 
+        weight="fill"
+        className="text-white drop-shadow-lg"
+        style={{
+          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+        }}
+      />
     </motion.div>
   );
 }
@@ -114,6 +154,7 @@ function DiceDisplay({ value, isRolling }) {
 DiceDisplay.propTypes = {
   value: PropTypes.number.isRequired,
   isRolling: PropTypes.bool,
+  size: PropTypes.number,
 };
 
 /**
@@ -217,46 +258,66 @@ PlayerInfoRow.propTypes = {
 /**
  * Turn controls component
  */
-function TurnControls({ onRoll, onEndTurn, isPaused, onPause, onResume }) {
+function TurnControls({ onRoll, onEndTurn, isPaused, onPause, onResume, onQuit }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <Button
-        variant="warning"
-        size="default"
-        onClick={onRoll}
-        className="flex-1"
-      >
-        <Cube size={14} weight="fill" />
-        Roll
-      </Button>
-      
-      {isPaused ? (
+    <div className="space-y-2">
+      {/* Roll & End Turn row */}
+      <div className="flex items-center gap-1.5">
         <Button
-          variant="success"
-          size="icon"
-          onClick={onResume}
+          variant="warning"
+          size="default"
+          onClick={onRoll}
+          className="flex-1"
         >
-          <Play size={14} weight="fill" />
+          <Cube size={14} weight="fill" />
+          Roll
         </Button>
-      ) : (
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={onPause}
-        >
-          <Pause size={14} weight="fill" />
-        </Button>
-      )}
 
-      <Button
-        variant="primary"
-        size="default"
-        onClick={onEndTurn}
-        className="flex-1"
-      >
-        <SkipForward size={14} weight="fill" />
-        End Turn
-      </Button>
+        <Button
+          variant="primary"
+          size="default"
+          onClick={onEndTurn}
+          className="flex-1"
+        >
+          <SkipForward size={14} weight="fill" />
+          End Turn
+        </Button>
+      </div>
+
+      {/* Pause/Resume & Quit row */}
+      <div className="flex items-center gap-1.5">
+        {isPaused ? (
+          <Button
+            variant="success"
+            size="default"
+            onClick={onResume}
+            className="flex-1"
+          >
+            <Play size={14} weight="fill" />
+            Resume
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="default"
+            onClick={onPause}
+            className="flex-1"
+          >
+            <Pause size={14} weight="fill" />
+            Pause
+          </Button>
+        )}
+
+        <Button
+          variant="danger"
+          size="default"
+          onClick={onQuit}
+          className="flex-1"
+        >
+          <SignOut size={14} weight="fill" />
+          Quit
+        </Button>
+      </div>
     </div>
   );
 }
@@ -267,6 +328,7 @@ TurnControls.propTypes = {
   isPaused: PropTypes.bool,
   onPause: PropTypes.func,
   onResume: PropTypes.func,
+  onQuit: PropTypes.func,
 };
 
 /**
@@ -360,6 +422,7 @@ export function PlayerDashboard({
   isPaused,
   onPause,
   onResume,
+  onQuit,
   mode,
   onSetMode,
   onBuyDevCard,
@@ -543,18 +606,29 @@ export function PlayerDashboard({
 
             {/* Dice Display */}
             {lastRoll && (
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
-                <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Last Roll</div>
+              <div className="p-2.5 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/60 shadow-lg shadow-black/20">
+                <div className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase mb-2">Last Roll</div>
                 {roll1 != null && roll2 != null ? (
-                  <div className="flex items-center gap-2">
-                    <DiceDisplay value={roll1} />
-                    <DiceDisplay value={roll2} />
-                    <div className="ml-2 text-2xl font-bold text-slate-200">
-                      = {rollSum}
-                    </div>
+                  <div className="flex items-center justify-center gap-2">
+                    {/* First Die */}
+                    <DiceDisplay value={roll1} size={28} />
+                    
+                    {/* Plus sign */}
+                    <Plus size={14} weight="bold" className="text-slate-500" />
+                    
+                    {/* Second Die */}
+                    <DiceDisplay value={roll2} size={28} />
+                    
+                    {/* Equals sign */}
+                    <Equals size={14} weight="bold" className="text-slate-500" />
+                    
+                    {/* Sum display */}
+                    <span className="text-lg font-bold text-slate-200">
+                      {rollSum}
+                    </span>
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-400">No roll yet</div>
+                  <div className="text-xs text-slate-400 text-center">No roll yet</div>
                 )}
               </div>
             )}
@@ -568,7 +642,9 @@ export function PlayerDashboard({
                 isPaused={isPaused}
                 onPause={onPause}
                 onResume={onResume}
+                onQuit={onQuit}
               />
+              {/* BUILD & ACTIONS - commented out for agent-only games
               <div className="h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent" />
               <div className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Build & Actions</div>
               <ActionTools
@@ -577,6 +653,7 @@ export function PlayerDashboard({
                 onBuyDevCard={onBuyDevCard}
                 onShowDevCards={onShowDevCards}
               />
+              */}
             </div>
           </div>
         </Collapsible>
@@ -800,6 +877,7 @@ PlayerDashboard.propTypes = {
   isPaused: PropTypes.bool,
   onPause: PropTypes.func,
   onResume: PropTypes.func,
+  onQuit: PropTypes.func,
   mode: PropTypes.string,
   onSetMode: PropTypes.func,
   onBuyDevCard: PropTypes.func,
