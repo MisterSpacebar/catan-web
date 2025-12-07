@@ -1046,25 +1046,17 @@ export default function CatanSandbox() {
         playerConfigs
       ).slice(0, numPlayers);
 
-      // Patch: Player 0 = heuristic algorithm-only, Player 1 = llm-only
-      const patched = normalized.map((c, i) => {
-        if (i === 0) {
-          return {
-            ...c,
-            type: "llm",
-            algorithmMode: "algo_only",
-            algorithm: "heuristic", // change to "mcts" only if implemented
-          };
-        }
-        if (i === 1) {
-          return {
-            ...c,
-            type: "llm",
-            algorithmMode: "llm_only",
-          };
-        }
-        return c;
-      });
+      // ✅ FIX: do NOT override player strategies here.
+      // This was forcing Player 2 to llm_only and showing OpenAI instead of Algorithm-only.
+      const patched = normalized.map((c) => ({
+        ...c,
+        algorithmMode: c?.algorithmMode || "llm_only",
+        algorithm: c?.algorithm || "none",
+        algorithmParams:
+          c?.algorithmParams && typeof c.algorithmParams === "object"
+            ? c.algorithmParams
+            : {},
+      }));
 
       const res = await fetch(`${API_BASE}/api/games`, {
         method: "POST",
